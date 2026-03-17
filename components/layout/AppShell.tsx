@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {!loaded && <TreeLoader onComplete={handleComplete} />}
       {/* visibility:hidden keeps content in DOM for SEO — crawlers still read it */}
-      <div style={{ visibility: loaded ? 'visible' : 'hidden' }}>
+      <div style={{ visibility: loaded ? 'visible' : 'hidden' }} suppressHydrationWarning>
         {children}
       </div>
     </>

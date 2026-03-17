@@ -165,7 +165,7 @@ export async function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-white/8 mt-12 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/30">
           <p className="flex items-center gap-1">
-            &copy; {currentYear} Vanashree Gramvikas Pratishthan. Made with
+            &copy; <span suppressHydrationWarning>{currentYear}</span> Vanashree Gramvikas Pratishthan. Made with
             <IconLeaf size={12} className="text-gold/60" />
             in Maharashtra.
           </p>
