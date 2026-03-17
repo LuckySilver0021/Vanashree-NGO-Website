@@ -11,6 +11,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
   const [form, setForm] = useState({
     name: '', email: '', subject: '', message: '',
     location: '', skills: '', experience: '', education: '',
+    phone: '', preferredRole: '',
   })
 
   const isVolunteer = form.subject === 'Volunteering Inquiry'
@@ -26,6 +27,8 @@ export function ContactForm({ toEmail }: ContactFormProps) {
         updated.skills = ''
         updated.experience = ''
         updated.education = ''
+        updated.phone = ''
+        updated.preferredRole = ''
       }
       return updated
     })
@@ -51,6 +54,8 @@ export function ContactForm({ toEmail }: ContactFormProps) {
             skills: form.skills,
             experience: form.experience,
             education: form.education,
+            phone: form.phone,
+            preferredRole: form.preferredRole,
           }),
         }),
       })
@@ -59,7 +64,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
 
       if (data.success) {
         setStatus('sent')
-        setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '' })
+        setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '', phone: '', preferredRole: '' })
         setTimeout(() => setStatus('idle'), 5000)
       } else {
         setStatus('error')
@@ -152,6 +157,35 @@ export function ContactForm({ toEmail }: ContactFormProps) {
                 onChange={handleChange}
                 className={inputClass}
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Phone Number</label>
+              <input
+                type="tel"
+                name="phone"
+                required
+                placeholder="+91 XXXXX XXXXX"
+                value={form.phone}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Preferred Role</label>
+              <select
+                name="preferredRole"
+                required
+                value={form.preferredRole}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="" disabled>Select a role...</option>
+                <option value="Technical">Technical</option>
+                <option value="Non-technical">Non-technical</option>
+              </select>
             </div>
           </div>
 
