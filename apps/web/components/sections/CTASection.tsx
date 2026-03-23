@@ -1,7 +1,7 @@
 'use client'
 
 import { FadeIn } from '@/components/motion/FadeIn'
-import { Button } from '@/components/ui/button'
+import { Button } from '@vanashree/ui/button'
 import Link from 'next/link'
 import { IconArrowRight } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
@@ -28,10 +28,10 @@ export function CTASection({
   return (
     <section className="relative py-20 md:py-28 overflow-hidden">
       {/* Gradient background with warm accent */}
-      <div className="absolute inset-0 bg-gradient-to-br from-forest via-canopy to-forest" />
+      <div className="absolute inset-0 bg-linear-to-br from-forest via-canopy to-forest" />
       {/* Decorative warm glow */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-gold/5 blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-leaf/10 blur-3xl" />
+      <div className="absolute top-0 right-0 w-125 h-125 rounded-full bg-gold/5 blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-100 h-100 rounded-full bg-leaf/10 blur-3xl" />
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 text-center relative z-10">
         <FadeIn>

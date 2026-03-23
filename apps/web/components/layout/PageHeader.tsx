@@ -1,5 +1,5 @@
 import { FadeIn } from '@/components/motion/FadeIn'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@vanashree/ui'
 
 interface PageHeaderProps {
   eyebrow: string
@@ -10,9 +10,9 @@ interface PageHeaderProps {
 export function PageHeader({ eyebrow, title, description }: PageHeaderProps) {
   return (
     <section className="relative pt-32 pb-16 md:pt-40 md:pb-20 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-forest via-canopy to-forest" />
+      <div className="absolute inset-0 bg-linear-to-br from-forest via-canopy to-forest" />
       {/* Warm glow */}
-      <div className="absolute bottom-0 right-0 w-[500px] h-[300px] rounded-full bg-gold/5 blur-3xl" />
+      <div className="absolute bottom-0 right-0 w-125 h-75 rounded-full bg-gold/5 blur-3xl" />
       <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 text-center">
         <FadeIn>
           <Badge className="mb-5 bg-gold/15 text-gold border-gold/25 px-4 py-1.5 text-xs font-medium tracking-wide backdrop-blur-sm">

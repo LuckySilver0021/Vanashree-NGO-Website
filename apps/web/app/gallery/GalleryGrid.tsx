@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@vanashree/ui'
 import type { GalleryImage } from '@/lib/gallery'
 import { IconX, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 
@@ -105,7 +105,7 @@ export function GalleryGrid({ images, categories }: GalleryGridProps) {
                   loading="lazy"
                 />
                 {/* Hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-forest/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                <div className="absolute inset-0 bg-linear-to-t from-forest/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
                   <Badge className="bg-white/90 text-forest border-0 text-[10px] font-semibold uppercase tracking-wider">
                     {img.category}
                   </Badge>

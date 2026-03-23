@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@vanashree/ui'
 import { IconCalendar, IconArrowRight } from '@tabler/icons-react'
 import type { Post } from '@/lib/content/mock'
 
@@ -15,7 +15,7 @@ export function BlogCard({ post, imageSrc, imageWidth, imageHeight }: BlogCardPr
   return (
     <Link href={`/blog/${post.slug}`} className="group block h-full">
       <article className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-moss/15 transition-all duration-500 group-hover:-translate-y-1.5 h-full flex flex-col">
-        <div className="aspect-[16/10] relative overflow-hidden">
+        <div className="aspect-16/10 relative overflow-hidden">
           <Image
             src={imageSrc}
             alt={post.title}
@@ -25,7 +25,7 @@ export function BlogCard({ post, imageSrc, imageWidth, imageHeight }: BlogCardPr
             sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="absolute top-3 left-3">
             <Badge className="bg-white/95 text-forest border-0 text-[10px] font-semibold uppercase tracking-wider shadow-sm">
               {post.category}

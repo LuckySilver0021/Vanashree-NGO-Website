@@ -4,9 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { FadeIn } from '@/components/motion/FadeIn'
 import { ImpactStrip } from '@/components/sections/ImpactStrip'
 import { CTASection } from '@/components/sections/CTASection'
-import { DynamicIcon } from '@/components/ui/icon'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { DynamicIcon, Badge, Separator } from '@vanashree/ui'
 import { IconCheck, IconHandStop } from '@tabler/icons-react'
 
 export const metadata: Metadata = {

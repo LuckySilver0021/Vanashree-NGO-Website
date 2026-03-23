@@ -1,2 +1,8 @@
-* { box-sizing: border-box; }
-body { margin: 0; font-family: Inter, system-ui, -apple-system, sans-serif; }
+@import "tailwindcss";
+
+/* Your custom styles below */
+@layer base {
+  html {
+    font-family: system-ui, sans-serif;
+  }
+}

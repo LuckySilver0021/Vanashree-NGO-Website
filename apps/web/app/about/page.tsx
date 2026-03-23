@@ -6,7 +6,7 @@ import { FadeIn } from '@/components/motion/FadeIn'
 import { MissionVisionCards } from '@/components/sections/MissionVisionCards'
 import { ImpactStrip } from '@/components/sections/ImpactStrip'
 import { CTASection } from '@/components/sections/CTASection'
-import { Button } from '@/components/ui/button'
+import {Button} from '@vanashree/ui/button'
 import Link from 'next/link'
 import Image from 'next/image'
 import {

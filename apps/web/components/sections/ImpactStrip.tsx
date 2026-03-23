@@ -2,7 +2,7 @@
 
 import { FadeIn } from '@/components/motion/FadeIn'
 import { CountUp } from '@/components/motion/CountUp'
-import { DynamicIcon } from '@/components/ui/icon'
+import { DynamicIcon } from '@vanashree/ui'
 import type { ImpactMetric } from '@/lib/content/mock'
 
 interface ImpactStripProps {
@@ -15,7 +15,7 @@ export function ImpactStrip({ metrics, variant = 'full', theme = 'dark' }: Impac
   const isLight = theme === 'light'
   return (
     <section className="relative py-16 md:py-24 overflow-hidden">
-      <div className={`absolute inset-0 ${isLight ? 'bg-cream' : 'bg-gradient-to-br from-forest via-canopy to-forest'}`} />
+      <div className={`absolute inset-0 ${isLight ? 'bg-cream' : 'bg-linear-to-br from-forest via-canopy to-forest'}`} />
       {/* Subtle dot pattern */}
       <div
         className="absolute inset-0 opacity-[0.04]"
