@@ -10,7 +10,7 @@ cd packages/ui && npm run build
 ```
 
 # Development
-turbo dev
+turbo dev 
 
 # Build
 turbo build
