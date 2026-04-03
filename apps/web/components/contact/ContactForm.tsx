@@ -1,27 +1,79 @@
 'use client'
 
 import { useState } from 'react'
-import { IconSend, IconCheck } from '@tabler/icons-react'
+import { IconSend, IconCheck, IconAlertCircle } from '@tabler/icons-react'
 
 interface ContactFormProps {
   toEmail: string
 }
 
 export function ContactForm({ toEmail }: ContactFormProps) {
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
-  const [sent, setSent] = useState(false)
+  const [form, setForm] = useState({
+    name: '', email: '', subject: '', message: '',
+    location: '', skills: '', experience: '', education: '',
+    phone: '', preferredRole: '',
+  })
+
+  const isVolunteer = form.subject === 'Volunteering Inquiry'
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    setForm(prev => {
+      const updated = { ...prev, [name]: value }
+      // Clear volunteer fields when switching away from volunteering
+      if (name === 'subject' && value !== 'Volunteering Inquiry') {
+        updated.location = ''
+        updated.skills = ''
+        updated.experience = ''
+        updated.education = ''
+        updated.phone = ''
+        updated.preferredRole = ''
+      }
+      return updated
+    })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const body = `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`
-    const mailtoLink = `mailto:${toEmail}?subject=${encodeURIComponent(form.subject)}&body=${encodeURIComponent(body)}`
-    window.open(mailtoLink, '_blank')
-    setSent(true)
-    setTimeout(() => setSent(false), 4000)
+    setStatus('sending')
+
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_key: process.env.NEXT_PUBLIC_WEB3FORMS_KEY,
+          name: form.name,
+          email: form.email,
+          subject: form.subject,
+          message: form.message,
+          from_name: 'Vanashree Website',
+          ...(isVolunteer && {
+            location: form.location,
+            skills: form.skills,
+            experience: form.experience,
+            education: form.education,
+            phone: form.phone,
+            preferredRole: form.preferredRole,
+          }),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setStatus('sent')
+        setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '', phone: '', preferredRole: '' })
+        setTimeout(() => setStatus('idle'), 5000)
+      } else {
+        setStatus('error')
+        setTimeout(() => setStatus('idle'), 5000)
+      }
+    } catch {
+      setStatus('error')
+      setTimeout(() => setStatus('idle'), 5000)
+    }
   }
 
   const inputClass =
@@ -74,6 +126,97 @@ export function ContactForm({ toEmail }: ContactFormProps) {
         </select>
       </div>
 
+      {/* Volunteer-specific fields */}
+      {isVolunteer && (
+        <div className="space-y-4 rounded-xl border border-leaf/20 bg-leaf/5 p-4 animate-in">
+          <p className="text-xs font-semibold text-leaf uppercase tracking-wide flex items-center gap-1.5">
+            <span>🌿</span> Volunteer Details
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Location</label>
+              <input
+                type="text"
+                name="location"
+                required
+                placeholder="City, State"
+                value={form.location}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Education</label>
+              <input
+                type="text"
+                name="education"
+                required
+                placeholder="B.A. in Social Work"
+                value={form.education}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Phone Number</label>
+              <input
+                type="tel"
+                name="phone"
+                required
+                placeholder="+91 XXXXX XXXXX"
+                value={form.phone}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Preferred Role</label>
+              <select
+                name="preferredRole"
+                required
+                value={form.preferredRole}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="" disabled>Select a role...</option>
+                <option value="Technical">Technical</option>
+                <option value="Non-technical">Non-technical</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Skills</label>
+            <input
+              type="text"
+              name="skills"
+              required
+              placeholder="Teaching, First Aid, Event Management"
+              value={form.skills}
+              onChange={handleChange}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Experience</label>
+            <textarea
+              name="experience"
+              required
+              rows={3}
+              placeholder="Tell us about any prior volunteering or relevant experience..."
+              value={form.experience}
+              onChange={handleChange}
+              className={`${inputClass} resize-none`}
+            />
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Message</label>
         <textarea
@@ -89,12 +232,26 @@ export function ContactForm({ toEmail }: ContactFormProps) {
 
       <button
         type="submit"
-        className="w-full flex items-center justify-center gap-2 bg-forest hover:bg-canopy text-white font-semibold text-sm py-3.5 px-6 rounded-xl transition-all duration-200 active:scale-[0.98]"
+        disabled={status === 'sending'}
+        className="w-full flex items-center justify-center gap-2 bg-forest hover:bg-canopy text-white font-semibold text-sm py-3.5 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {sent ? (
+        {status === 'sending' ? (
+          <>
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Sending…
+          </>
+        ) : status === 'sent' ? (
           <>
             <IconCheck size={18} />
-            Opening your email app…
+            Message Sent!
+          </>
+        ) : status === 'error' ? (
+          <>
+            <IconAlertCircle size={18} />
+            Failed — Try Again
           </>
         ) : (
           <>
@@ -104,9 +261,21 @@ export function ContactForm({ toEmail }: ContactFormProps) {
         )}
       </button>
 
-      <p className="text-xs text-pebble text-center leading-relaxed">
-        This will open your email app with your message pre-filled.
-      </p>
+      {status === 'sent' && (
+        <p className="text-xs text-leaf text-center leading-relaxed font-medium">
+          ✓ Your message has been sent successfully. We&apos;ll get back to you soon!
+        </p>
+      )}
+      {status === 'error' && (
+        <p className="text-xs text-red-500 text-center leading-relaxed font-medium">
+          Something went wrong. Please try again or email us directly.
+        </p>
+      )}
+      {status === 'idle' && (
+        <p className="text-xs text-pebble text-center leading-relaxed">
+          Your message will be sent directly to our team.
+        </p>
+      )}
     </form>
   )
 }
