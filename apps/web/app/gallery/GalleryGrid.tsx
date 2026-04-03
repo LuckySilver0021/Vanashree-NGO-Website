@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Badge } from '@vanashree/ui'
+import { Badge } from '@vanashree/ui/badge'
 import type { GalleryImage } from '@/lib/gallery'
 import { IconX, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 

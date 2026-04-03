@@ -2,7 +2,7 @@
 
 import { FadeIn } from '@/components/motion/FadeIn'
 import { CountUp } from '@/components/motion/CountUp'
-import { DynamicIcon } from '@vanashree/ui'
+import { DynamicIcon } from '@vanashree/ui/icon'
 import type { ImpactMetric } from '@/lib/content/mock'
 
 interface ImpactStripProps {

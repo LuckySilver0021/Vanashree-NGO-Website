@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Badge } from '@vanashree/ui'
+import { Badge } from '@vanashree/ui/badge'
 import { IconCalendar, IconArrowRight } from '@tabler/icons-react'
 import type { Post } from '@/lib/content/mock'
 

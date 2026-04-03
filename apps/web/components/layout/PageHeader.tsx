@@ -1,5 +1,5 @@
 import { FadeIn } from '@/components/motion/FadeIn'
-import { Badge } from '@vanashree/ui'
+import { Badge } from '@vanashree/ui/badge'
 
 interface PageHeaderProps {
   eyebrow: string
