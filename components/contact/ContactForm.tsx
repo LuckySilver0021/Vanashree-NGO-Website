@@ -2,6 +2,12 @@
 
 import { useState } from 'react'
 import { IconSend, IconCheck, IconAlertCircle } from '@tabler/icons-react'
+import dynamic from 'next/dynamic'
+
+const HCaptcha = dynamic(() => import('@hcaptcha/react-hcaptcha'), {
+  ssr: false,
+  loading: () => <div className="h-[78px] flex items-center justify-center text-xs text-pebble">Loading captcha…</div>,
+})
 
 interface ContactFormProps {
   toEmail: string
@@ -16,6 +22,10 @@ export function ContactForm({ toEmail }: ContactFormProps) {
 
   const isVolunteer = form.subject === 'Volunteering Inquiry'
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  // hCaptcha state
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [captchaKey, setCaptchaKey] = useState(0)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -36,19 +46,26 @@ export function ContactForm({ toEmail }: ContactFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!captchaToken) {
+      setStatus('error')
+      setTimeout(() => setStatus('idle'), 5000)
+      return
+    }
+
     setStatus('sending')
 
     try {
-      const response = await fetch('https://api.web3forms.com/submit', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          access_key: process.env.NEXT_PUBLIC_WEB3FORMS_KEY,
           name: form.name,
           email: form.email,
           subject: form.subject,
           message: form.message,
-          from_name: 'Vanashree Website',
+          'h-captcha-response': captchaToken,
+          website: '', // honeypot — must be empty
           ...(isVolunteer && {
             location: form.location,
             skills: form.skills,
@@ -65,6 +82,8 @@ export function ContactForm({ toEmail }: ContactFormProps) {
       if (data.success) {
         setStatus('sent')
         setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '', phone: '', preferredRole: '' })
+        setCaptchaToken(null)
+        setCaptchaKey(k => k + 1)
         setTimeout(() => setStatus('idle'), 5000)
       } else {
         setStatus('error')
@@ -81,6 +100,18 @@ export function ContactForm({ toEmail }: ContactFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Honeypot field — hidden from humans, bots will fill it */}
+      <input
+        type="text"
+        name="website"
+        value=""
+        onChange={() => {}}
+        tabIndex={-1}
+        autoComplete="off"
+        style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }}
+        aria-hidden="true"
+      />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-forest mb-1.5 uppercase tracking-wide">Your Name</label>
@@ -230,9 +261,19 @@ export function ContactForm({ toEmail }: ContactFormProps) {
         />
       </div>
 
+      {/* hCaptcha widget */}
+      <div className="flex justify-center">
+        <HCaptcha
+          key={captchaKey}
+          sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
+          onVerify={(token: string) => setCaptchaToken(token)}
+          onExpire={() => setCaptchaToken(null)}
+        />
+      </div>
+
       <button
         type="submit"
-        disabled={status === 'sending'}
+        disabled={status === 'sending' || !captchaToken}
         className="w-full flex items-center justify-center gap-2 bg-forest hover:bg-canopy text-white font-semibold text-sm py-3.5 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {status === 'sending' ? (
@@ -271,7 +312,12 @@ export function ContactForm({ toEmail }: ContactFormProps) {
           Something went wrong. Please try again or email us directly.
         </p>
       )}
-      {status === 'idle' && (
+      {status === 'idle' && !captchaToken && (
+        <p className="text-xs text-pebble text-center leading-relaxed">
+          Please complete the captcha above to send your message.
+        </p>
+      )}
+      {status === 'idle' && captchaToken && (
         <p className="text-xs text-pebble text-center leading-relaxed">
           Your message will be sent directly to our team.
         </p>
