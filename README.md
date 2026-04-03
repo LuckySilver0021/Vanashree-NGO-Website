@@ -6,6 +6,7 @@
 git clone https://github.com/vanashree-ngo/Vanashree-Landing-Page
 cd Vanashree-Landing-Page
 npm install
+cd packages/ui && npm run build
 ```
 
 # Development
