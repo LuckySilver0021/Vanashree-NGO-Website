@@ -197,8 +197,8 @@ Volunteers from all age groups came together to green the village roads, school 
 The drive was supported by the local gram panchayat, who committed to maintaining the saplings through the monsoon season, including regular watering and protection from cattle grazing.
 
 This event is part of our larger vision to transform barren landscapes into thriving green corridors. With over 1,000 trees already planted, we are well on our way to creating a greener future for Gatewadi and the surrounding villages.`,
-    coverImage: '/images/gallery/gallery-01.webp',
-    publishedAt: '2025-08-15',
+    coverImage: '/images/gallery/gallery-24.webp',
+    publishedAt: '2026-1-1',
     category: 'Plantation',
   },
   {
@@ -214,7 +214,7 @@ The tank provides clean and safe drinking water to students daily, eliminating t
 This project was made possible through community donations and volunteer labour. Local masons and villagers contributed their time and skills, making it a truly community-driven infrastructure project.
 
 The inauguration ceremony was attended by the sarpanch, school headmaster, parents, and students. The children were visibly excited about having clean water available right in their school premises.`,
-    coverImage: '/images/gallery/gallery-05.webp',
+    coverImage: '/images/gallery/gallery-25.webp',
     publishedAt: '2025-06-20',
     category: 'Infrastructure',
   },
@@ -231,7 +231,7 @@ Together, we collected waste from public spaces, rivers, and roadsides. The driv
 We partnered with the zilla parishad to arrange proper waste disposal and recycling. School students participated with special enthusiasm, creating handmade posters about keeping their village clean.
 
 This initiative reinforces our commitment to environmental stewardship. A clean village is not just about aesthetics — it's about health, dignity, and the quality of life for every resident.`,
-    coverImage: '/images/gallery/gallery-09.webp',
+    coverImage: '/images/gallery/gallery-26.webp',
     publishedAt: '2025-04-10',
     category: 'Environment',
   },
@@ -275,7 +275,7 @@ export const pageContent: PageContent = {
     'Grassroots NGO empowering rural communities through afforestation, education, and sustainable development since 2010.',
   footerAddress: 'Gatewadi, Parner, Ahilyanagar, Maharashtra, India',
   footerRegistration: 'Registered Trust · Gatewadi, Maharashtra',
-  footerEmail: 'contact@vanashree.org',
+  footerEmail: 'vanashreegramvikaspratishthan@gmail.com',
   footerPhone: '+91 96996 11329',
   footerWhatsapp: '919699611329',
   footerInstagram: 'https://www.instagram.com/vanashree_ngo/',

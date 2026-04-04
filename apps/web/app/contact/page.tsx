@@ -44,15 +44,15 @@ export default async function ContactPage() {
                   Whether you want to volunteer, partner with us on a project,
                   or just learn more about our work — we&apos;re here to connect.
                 </p>
-                <ContactForm toEmail={page.footerEmail ?? 'contact@vanashree.org'} />
+                <ContactForm toEmail={page.footerEmail ?? 'vanashreegramvikaspratishthan@gmail.com'} />
               </div>
             </FadeIn>
 
             {/* ─── Ways to help section ─── */}
             <FadeIn direction="right">
               <div className="space-y-5">
-                <div className="relative bg-gradient-to-br from-petal to-cream rounded-2xl p-7 border border-moss/15 group hover:shadow-lg transition-all duration-500">
-                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-leaf to-fern rounded-b" />
+                <div className="relative bg-linear-to-r from-petal to-cream rounded-2xl p-7 border border-moss/15 group hover:shadow-lg transition-all duration-500">
+                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-linear-to-r from-leaf to-fern rounded-b" />
                   <div className="w-12 h-12 rounded-xl bg-leaf/10 flex items-center justify-center mb-4">
                     <IconLeaf size={22} className="text-leaf" />
                   </div>
@@ -69,8 +69,8 @@ export default async function ContactPage() {
                   </a>
                 </div>
 
-                <div className="relative bg-gradient-to-br from-sand to-petal rounded-2xl p-7 border border-gold/15 group hover:shadow-lg transition-all duration-500">
-                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-gold to-amber rounded-b" />
+                <div className="relative bg-linear-to-br from-sand to-petal rounded-2xl p-7 border border-gold/15 group hover:shadow-lg transition-all duration-500">
+                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-linear-to-r from-gold to-amber rounded-b" />
                   <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center mb-4">
                     <IconUsers size={22} className="text-gold" />
                   </div>
@@ -88,7 +88,7 @@ export default async function ContactPage() {
                 </div>
 
                 <div className="relative bg-white rounded-2xl p-7 border border-terracotta/15 group hover:shadow-lg transition-all duration-500">
-                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-terracotta to-gold rounded-b" />
+                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-linear-to-r from-terracotta to-gold rounded-b" />
                   <div className="w-12 h-12 rounded-xl bg-terracotta/10 flex items-center justify-center mb-4">
                     <IconBrandInstagram size={22} className="text-terracotta" />
                   </div>
