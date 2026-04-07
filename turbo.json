@@ -20,7 +20,7 @@
         "packages/ui/dist/**"
       ],
       "dependsOn": []
-    }
+    },
     "start": {
       "dependsOn": [
         "^build"
