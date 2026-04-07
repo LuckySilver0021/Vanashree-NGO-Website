@@ -15,6 +15,12 @@
         "dist/**"
       ]
     },
+    "build-ui": {
+      "outputs": [
+        "packages/ui/dist/**"
+      ],
+      "dependsOn": []
+    }
     "start": {
       "dependsOn": [
         "^build"
