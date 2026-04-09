@@ -97,6 +97,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // --- Verify hCaptcha server-side with own secret key ---
+    const hcaptchaSecret = process.env.HCAPTCHA_SECRET_KEY
+    if (!hcaptchaSecret) {
+      console.error('HCAPTCHA_SECRET_KEY is not set in environment variables.')
+      return NextResponse.json(
+        { success: false, message: 'Server configuration error. Please try again later.' },
+        { status: 500 }
+      )
+    }
+    const hcaptchaVerifyRes = await fetch('https://api.hcaptcha.com/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret: hcaptchaSecret, response: captchaToken }),
+    })
+    const hcaptchaData = await hcaptchaVerifyRes.json() as { success: boolean }
+    if (!hcaptchaData.success) {
+      return NextResponse.json(
+        { success: false, message: 'Captcha verification failed. Please try again.' },
+        { status: 400 }
+      )
+    }
+
     // --- Validate volunteer fields if subject is volunteering ---
     const isVolunteer = VOLUNTEER_SUBJECTS.includes(subject)
 
