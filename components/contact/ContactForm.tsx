@@ -265,7 +265,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
       <div className="flex justify-center">
         <HCaptcha
           key={captchaKey}
-          sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
+          sitekey="56320864-72ea-4298-9d48-5bbec4ca9680"
           onVerify={(token: string) => setCaptchaToken(token)}
           onExpire={() => setCaptchaToken(null)}
         />
