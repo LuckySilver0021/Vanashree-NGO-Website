@@ -88,14 +88,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // --- Validate hCaptcha token ---
-    const captchaToken = body['h-captcha-response']
-    if (!captchaToken || typeof captchaToken !== 'string') {
-      return NextResponse.json(
-        { success: false, message: 'Please complete the captcha verification.' },
-        { status: 400 }
-      )
-    }
+    // --- Validate hCaptcha token --- (TODO: re-enable)
+    const captchaToken = body['h-captcha-response'] ?? ''
+    // if (!captchaToken || typeof captchaToken !== 'string') {
+    //   return NextResponse.json(
+    //     { success: false, message: 'Please complete the captcha verification.' },
+    //     { status: 400 }
+    //   )
+    // }
 
     // --- Verify hCaptcha server-side with own secret key ---
     // TODO: re-enable once correct HCAPTCHA_SECRET_KEY is confirmed on Vercel
