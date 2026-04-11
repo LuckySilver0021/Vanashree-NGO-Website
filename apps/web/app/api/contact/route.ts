@@ -88,37 +88,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // --- Validate hCaptcha token --- (TODO: re-enable)
-    const captchaToken = body['h-captcha-response'] ?? ''
-    // if (!captchaToken || typeof captchaToken !== 'string') {
-    //   return NextResponse.json(
-    //     { success: false, message: 'Please complete the captcha verification.' },
-    //     { status: 400 }
-    //   )
-    // }
-
-    // --- Verify hCaptcha server-side with own secret key ---
-    // TODO: re-enable once correct HCAPTCHA_SECRET_KEY is confirmed on Vercel
-    // const hcaptchaSecret = process.env.HCAPTCHA_SECRET_KEY
-    // if (!hcaptchaSecret) {
-    //   console.error('HCAPTCHA_SECRET_KEY is not set in environment variables.')
-    //   return NextResponse.json(
-    //     { success: false, message: 'Server configuration error. Please try again later.' },
-    //     { status: 500 }
-    //   )
-    // }
-    // const hcaptchaVerifyRes = await fetch('https://api.hcaptcha.com/siteverify', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    //   body: new URLSearchParams({ secret: hcaptchaSecret, response: captchaToken }),
-    // })
-    // const hcaptchaData = await hcaptchaVerifyRes.json() as { success: boolean }
-    // if (!hcaptchaData.success) {
-    //   return NextResponse.json(
-    //     { success: false, message: 'Captcha verification failed. Please try again.' },
-    //     { status: 400 }
-    //   )
-    // }
+    // --- Validate hCaptcha token ---
+    const captchaToken = body['h-captcha-response']
+    if (!captchaToken || typeof captchaToken !== 'string') {
+      return NextResponse.json(
+        { success: false, message: 'Please complete the captcha verification.' },
+        { status: 400 }
+      )
+    }
 
     // --- Validate volunteer fields if subject is volunteering ---
     const isVolunteer = VOLUNTEER_SUBJECTS.includes(subject)

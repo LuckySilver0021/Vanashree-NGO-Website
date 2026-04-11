@@ -47,12 +47,11 @@ export function ContactForm({ toEmail }: ContactFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // TODO: re-enable captcha guard
-    // if (!captchaToken) {
-    //   setStatus('error')
-    //   setTimeout(() => setStatus('idle'), 5000)
-    //   return
-    // }
+    if (!captchaToken) {
+      setStatus('error')
+      setTimeout(() => setStatus('idle'), 5000)
+      return
+    }
 
     setStatus('sending')
 
@@ -262,19 +261,19 @@ export function ContactForm({ toEmail }: ContactFormProps) {
         />
       </div>
 
-      {/* hCaptcha widget — TODO: re-enable */}
-      {/* <div className="flex justify-center">
+      {/* hCaptcha widget */}
+      <div className="flex justify-center">
         <HCaptcha
           key={captchaKey}
-          sitekey="56320864-72ea-4298-9d48-5bbec4ca9680"
+          sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
           onVerify={(token: string) => setCaptchaToken(token)}
           onExpire={() => setCaptchaToken(null)}
         />
-      </div> */}
+      </div>
 
       <button
         type="submit"
-        disabled={status === 'sending'}
+        disabled={status === 'sending' || !captchaToken}
         className="w-full flex items-center justify-center gap-2 bg-forest hover:bg-canopy text-white font-semibold text-sm py-3.5 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {status === 'sending' ? (
@@ -313,7 +312,12 @@ export function ContactForm({ toEmail }: ContactFormProps) {
           Something went wrong. Please try again or email us directly.
         </p>
       )}
-      {status === 'idle' && (
+      {status === 'idle' && !captchaToken && (
+        <p className="text-xs text-pebble text-center leading-relaxed">
+          Please complete the captcha above to send your message.
+        </p>
+      )}
+      {status === 'idle' && captchaToken && (
         <p className="text-xs text-pebble text-center leading-relaxed">
           Your message will be sent directly to our team.
         </p>
