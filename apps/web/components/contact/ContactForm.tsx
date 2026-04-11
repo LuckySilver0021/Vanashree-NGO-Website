@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 
 const HCaptcha = dynamic(() => import('@hcaptcha/react-hcaptcha'), {
   ssr: false,
-  loading: () => <div className="h-19.5 flex items-center justify-center text-xs text-pebble">Loading captcha…</div>,
+  loading: () => <div className="h-[78px] flex items-center justify-center text-xs text-pebble">Loading captcha…</div>,
 })
 
 interface ContactFormProps {
@@ -17,7 +17,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
   const [form, setForm] = useState({
     name: '', email: '', subject: '', message: '',
     location: '', skills: '', experience: '', education: '',
-    phone: '', preferredRole: '',
+    phone: '', preferredRole: '', website: '',
   })
 
   const isVolunteer = form.subject === 'Volunteering Inquiry'
@@ -65,7 +65,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
           subject: form.subject,
           message: form.message,
           'h-captcha-response': captchaToken,
-          website: '', // honeypot — must be empty
+          website: form.website, // honeypot — if filled, it means it's a bot
           ...(isVolunteer && {
             location: form.location,
             skills: form.skills,
@@ -81,7 +81,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
 
       if (data.success) {
         setStatus('sent')
-        setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '', phone: '', preferredRole: '' })
+        setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '', phone: '', preferredRole: '', website: '' })
         setCaptchaToken(null)
         setCaptchaKey(k => k + 1)
         setTimeout(() => setStatus('idle'), 5000)
@@ -104,8 +104,8 @@ export function ContactForm({ toEmail }: ContactFormProps) {
       <input
         type="text"
         name="website"
-        value=""
-        onChange={() => {}}
+        value={form.website}
+        onChange={handleChange}
         tabIndex={-1}
         autoComplete="off"
         style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }}

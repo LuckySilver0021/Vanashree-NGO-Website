@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
 
     // --- Parse body ---
     const body = await request.json()
-    console.log('[Contact API] Incoming body:', JSON.stringify(body))
 
     // --- Honeypot check ---
     if (body.website) {
@@ -91,7 +90,6 @@ export async function POST(request: NextRequest) {
 
     // --- Validate hCaptcha token ---
     const captchaToken = body['h-captcha-response']
-    console.log('[Contact API] Captcha token:', captchaToken)
     if (!captchaToken || typeof captchaToken !== 'string') {
       return NextResponse.json(
         { success: false, message: 'Please complete the captcha verification.' },
@@ -101,7 +99,6 @@ export async function POST(request: NextRequest) {
 
     // --- Validate volunteer fields if subject is volunteering ---
     const isVolunteer = VOLUNTEER_SUBJECTS.includes(subject)
-    console.log('[Contact API] isVolunteer:', isVolunteer)
 
     if (isVolunteer) {
       const volunteerFields = ['phone', 'location', 'preferredRole', 'skills', 'education', 'experience']
@@ -115,11 +112,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    
-
     // --- Build payload for Web3Forms ---
     const accessKey = process.env.WEB3FORMS_ACCESS_KEY
-    console.log('[Contact API] WEB3FORMS_ACCESS_KEY:', accessKey)
     if (!accessKey) {
       console.error('WEB3FORMS_ACCESS_KEY is not set in environment variables.')
       return NextResponse.json(
@@ -137,7 +131,6 @@ export async function POST(request: NextRequest) {
       from_name: 'Vanashree Website',
       'h-captcha-response': captchaToken,
     }
-    console.log('[Contact API] Web3Forms payload:', JSON.stringify(web3formsPayload))
 
     if (isVolunteer) {
       web3formsPayload.phone = body.phone.trim()
@@ -149,7 +142,6 @@ export async function POST(request: NextRequest) {
     }
 
     // --- Forward to Web3Forms ---
-    console.log('[Contact API] Sending request to Web3Forms...')
     const web3Response = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
       headers: {
@@ -160,9 +152,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(web3formsPayload),
       cache: 'no-store',
     })
-    console.log('[Contact API] Web3Forms response status:', web3Response.status)
+
     const responseText = await web3Response.text()
-    console.log('[Contact API] Web3Forms response text:', responseText.substring(0, 500))
 
     // Web3Forms may return HTML error pages instead of JSON
     let web3Data
