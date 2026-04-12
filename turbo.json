@@ -1,6 +1,5 @@
 {
-  "$schema": "https://turbo.build/schema.json",
-  "pipeline": {
+  "tasks": {
     "dev": {
       "cache": false,
       "persistent": true,
@@ -31,8 +30,5 @@
     "lint": {
       "outputs": []
     }
-  },
-  "env": [
-    "WEB3FORMS_ACCESS_KEY"
-  ]
+  }
 }
