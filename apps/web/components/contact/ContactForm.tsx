@@ -86,10 +86,12 @@ export function ContactForm({ toEmail }: ContactFormProps) {
         setCaptchaKey(k => k + 1)
         setTimeout(() => setStatus('idle'), 5000)
       } else {
+        console.error('[ContactForm] API error response:', data)
         setStatus('error')
         setTimeout(() => setStatus('idle'), 5000)
       }
-    } catch {
+    } catch (err) {
+      console.error('[ContactForm] Fetch or network error:', err)
       setStatus('error')
       setTimeout(() => setStatus('idle'), 5000)
     }
