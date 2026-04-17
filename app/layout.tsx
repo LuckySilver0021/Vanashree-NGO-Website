@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | Vanashree",
   },
   description:
-    "Grassroots NGO from Gatewadi, Maharashtra. Afforestation, education infrastructure, and environmental cleanup drives since 2010.",
+    "Grassroots NGO from Gatewadi, Maharashtra. Afforestation, education infrastructure, and environmental cleanup drives since 2013.",
   keywords: [
     "NGO Maharashtra",
     "tree plantation",
@@ -64,7 +64,7 @@ const orgSchema = {
   description:
     "Grassroots NGO focused on environmental conservation and rural development in Maharashtra",
   url: "https://vanashree.org",
-  foundingDate: "2010",
+  foundingDate: "2013",
   address: {
     "@type": "PostalAddress",
     streetAddress: "Gatewadi",
