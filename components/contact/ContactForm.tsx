@@ -17,7 +17,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
   const [form, setForm] = useState({
     name: '', email: '', subject: '', message: '',
     location: '', skills: '', experience: '', education: '',
-    phone: '', preferredRole: '', website: '',
+    phone: '', preferredRole: '', b_confirm: ''
   })
 
   const isVolunteer = form.subject === 'Volunteering Inquiry'
@@ -66,7 +66,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
           subject: form.subject,
           message: form.message,
           'h-captcha-response': captchaToken,
-          website: form.website, // honeypot — if filled, it means it's a bot
+          b_confirm: form.b_confirm, // honeypot — if filled, it means it's a bot
           ...(isVolunteer && {
             location: form.location,
             skills: form.skills,
@@ -82,7 +82,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
 
       if (data.success) {
         setStatus('sent')
-        setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '', phone: '', preferredRole: '', website: '' })
+        setForm({ name: '', email: '', subject: '', message: '', location: '', skills: '', experience: '', education: '', phone: '', preferredRole: '', b_confirm: '' })
         setCaptchaToken(null)
         setCaptchaKey(k => k + 1)
         setTimeout(() => setStatus('idle'), 5000)
@@ -104,8 +104,8 @@ export function ContactForm({ toEmail }: ContactFormProps) {
       {/* Honeypot field — hidden from humans, bots will fill it */}
       <input
         type="text"
-        name="website"
-        value={form.website}
+        name="b_confirm"
+        value={form.b_confirm}
         onChange={handleChange}
         tabIndex={-1}
         autoComplete="off"
