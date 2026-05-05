@@ -275,7 +275,7 @@ export const pageContent: PageContent = {
     'Grassroots NGO empowering rural communities through afforestation, education, and sustainable development since 2013.',
   footerAddress: 'Gatewadi, Parner, Ahilyanagar, Maharashtra, India',
   footerRegistration: 'Registered Trust · Gatewadi, Maharashtra',
-  footerEmail: 'contact@vanashree.org',
+  footerEmail: 'vanashreegramvikaspratishthan@gmail.com',
   footerPhone: '+91 96996 11329',
   footerWhatsapp: '919699611329',
   footerInstagram: 'https://www.instagram.com/vanashree_ngo/',
