@@ -44,7 +44,7 @@ export default async function ContactPage() {
                   Whether you want to volunteer, partner with us on a project,
                   or just learn more about our work — we&apos;re here to connect.
                 </p>
-                <ContactForm toEmail={page.footerEmail ?? 'contact@vanashree.org'} />
+                <ContactForm toEmail={page.footerEmail ?? 'vanashreegramvikaspratishthan@gmail.com'} />
               </div>
             </FadeIn>
 
