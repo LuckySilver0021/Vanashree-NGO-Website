@@ -28,26 +28,21 @@ async function appendToGoogleSheet(row: string[]): Promise<void> {
 
   const sheets = google.sheets({ version: 'v4', auth })
 
-  // Write headers if sheet is empty
-  const existing = await sheets.spreadsheets.values.get({
+  // Always ensure header row exists in row 1
+  await sheets.spreadsheets.values.update({
     spreadsheetId: sheetId,
     range: 'Sheet1!A1',
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [['Timestamp', 'Name', 'Email', 'Phone', 'Subject', 'Message', 'Location', 'Skills', 'Experience', 'Education', 'Preferred Role']],
+    },
   })
-  if (!existing.data.values || existing.data.values.length === 0) {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: sheetId,
-      range: 'Sheet1!A1',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [['Timestamp', 'Name', 'Email', 'Phone', 'Subject', 'Message', 'Location', 'Skills', 'Experience', 'Education', 'Preferred Role']],
-      },
-    })
-  }
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
     range: 'Sheet1!A:K',
     valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [row] },
   })
 }
