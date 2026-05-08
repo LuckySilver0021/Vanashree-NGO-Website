@@ -5,6 +5,8 @@ export async function GET() {
   const sheetId = process.env.GOOGLE_SHEET_ID
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
   const rawKey = process.env.GOOGLE_PRIVATE_KEY
+  const web3 = process.env.WEB3FORMS_ACCESS_KEY
+  const certSecret = process.env.CERTIFICATE_SECRET
 
   return NextResponse.json({
     GOOGLE_SHEET_ID: sheetId ? `SET (${sheetId.length} chars) — value: ${sheetId}` : 'NOT SET',
@@ -20,5 +22,7 @@ export async function GET() {
           last50chars: rawKey.substring(rawKey.length - 50),
         }
       : 'NOT SET',
+    WEB3FORMS_ACCESS_KEY: web3 ? `SET (${web3.length} chars) — value: ${web3}` : 'NOT SET',
+    CERTIFICATE_SECRET: certSecret ? `SET (${certSecret.length} chars) — value: ${certSecret}` : 'NOT SET',
   })
 }
