@@ -12,7 +12,11 @@ async function appendToGoogleSheet(row: string[]): Promise<void> {
     return
   }
 
-  const privateKey = rawKey.replace(/\\n/g, '\n')
+  // Normalize key: replace literal \n, then wrap with BEGIN/END if missing
+  let privateKey = rawKey.replace(/\\n/g, '\n')
+  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey.trim()}\n-----END PRIVATE KEY-----\n`
+  }
 
   const auth = new google.auth.GoogleAuth({
     credentials: {
