@@ -38,6 +38,10 @@ Thumbs.db
 
 # ─── Internal docs (keep off GitHub) ────────────────────
 DEPLOY-DEV.md
+Documentation/
+
+# ─── Turbo cache ─────────────────────────────────────────
+.turbo/
 DEPLOY-ADMIN.md
 .github/
 
