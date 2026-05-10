@@ -1,4 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { google } from 'googleapis'
+
+// --- Google Sheets helper ---
+async function appendToGoogleSheet(row: string[]): Promise<void> {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
+  const rawKey = process.env.GOOGLE_PRIVATE_KEY
+  const sheetId = process.env.GOOGLE_SHEET_ID
+
+  if (!email || !rawKey || !sheetId) {
+    console.warn('Google Sheets env vars not set — skipping sheet append.')
+    return
+  }
+
+  // Normalize key: replace literal \n, then wrap with BEGIN/END if missing
+  let privateKey = rawKey.replace(/\\n/g, '\n')
+  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey.trim()}\n-----END PRIVATE KEY-----\n`
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    credentials: {
+      client_email: email,
+      private_key: privateKey,
+    },
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  })
+
+  const sheets = google.sheets({ version: 'v4', auth })
+
+  // Always ensure header row exists in row 1
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: 'Sheet1!A1',
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [['Timestamp', 'Name', 'Email', 'Phone', 'Subject', 'Message', 'Location', 'Skills', 'Experience', 'Education', 'Preferred Role']],
+    },
+  })
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
+    range: 'Sheet1!A:K',
+    valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: [row] },
+  })
+}
 
 // --- Simple in-memory rate limiter ---
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
@@ -55,7 +102,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // --- Honeypot check ---
-    if (body.website) {
+    if (body.b_confirm) {
       // Silently succeed to not tip off bots
       return NextResponse.json({ success: true, message: 'Message sent successfully.' })
     }
@@ -88,14 +135,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // --- Validate hCaptcha token ---
-    const captchaToken = body['h-captcha-response']
-    if (!captchaToken || typeof captchaToken !== 'string') {
-      return NextResponse.json(
-        { success: false, message: 'Please complete the captcha verification.' },
-        { status: 400 }
-      )
-    }
+    // --- Validate hCaptcha token --- (TODO: re-enable)
+    const captchaToken = body['h-captcha-response'] ?? ''
+    // if (!captchaToken || typeof captchaToken !== 'string') {
+    //   return NextResponse.json(
+    //     { success: false, message: 'Please complete the captcha verification.' },
+    //     { status: 400 }
+    //   )
+    // }
+
+    // --- Verify hCaptcha server-side with own secret key ---
+    // TODO: re-enable once correct HCAPTCHA_SECRET_KEY is confirmed on Vercel
+    // const hcaptchaSecret = process.env.HCAPTCHA_SECRET_KEY
+    // if (!hcaptchaSecret) {
+    //   console.error('HCAPTCHA_SECRET_KEY is not set in environment variables.')
+    //   return NextResponse.json(
+    //     { success: false, message: 'Server configuration error. Please try again later.' },
+    //     { status: 500 }
+    //   )
+    // }
+    // const hcaptchaVerifyRes = await fetch('https://api.hcaptcha.com/siteverify', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    //   body: new URLSearchParams({ secret: hcaptchaSecret, response: captchaToken }),
+    // })
+    // const hcaptchaData = await hcaptchaVerifyRes.json() as { success: boolean }
+    // if (!hcaptchaData.success) {
+    //   return NextResponse.json(
+    //     { success: false, message: 'Captcha verification failed. Please try again.' },
+    //     { status: 400 }
+    //   )
+    // }
 
     // --- Validate volunteer fields if subject is volunteering ---
     const isVolunteer = VOLUNTEER_SUBJECTS.includes(subject)
@@ -129,7 +199,6 @@ export async function POST(request: NextRequest) {
       subject: subject.trim(),
       message: message.trim(),
       from_name: 'Vanashree Website',
-      'h-captcha-response': captchaToken,
     }
 
     if (isVolunteer) {
@@ -141,17 +210,38 @@ export async function POST(request: NextRequest) {
       web3formsPayload.experience = body.experience.trim()
     }
 
-    // --- Forward to Web3Forms ---
-    const web3Response = await fetch('https://api.web3forms.com/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'Vanashree-Website/1.0',
-      },
-      body: JSON.stringify(web3formsPayload),
-      cache: 'no-store',
-    })
+    // --- Build Google Sheets row ---
+    const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+    const sheetsRow = [
+      timestamp,
+      name.trim(),
+      email.trim(),
+      isVolunteer ? (body.phone ?? '').trim() : '',
+      subject.trim(),
+      message.trim(),
+      isVolunteer ? (body.location ?? '').trim() : '',
+      isVolunteer ? (body.skills ?? '').trim() : '',
+      isVolunteer ? (body.experience ?? '').trim() : '',
+      isVolunteer ? (body.education ?? '').trim() : '',
+      isVolunteer ? (body.preferredRole ?? '').trim() : '',
+    ]
+
+    // --- Run Web3Forms + Google Sheets in parallel ---
+    const [web3Response] = await Promise.all([
+      fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'Vanashree-Website/1.0',
+        },
+        body: JSON.stringify(web3formsPayload),
+        cache: 'no-store',
+      }),
+      appendToGoogleSheet(sheetsRow).catch((err) =>
+        console.error('Google Sheets append FULL ERROR:', JSON.stringify(err?.response?.data ?? err?.message ?? err))
+      ),
+    ])
 
     const responseText = await web3Response.text()
 

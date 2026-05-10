@@ -242,7 +242,7 @@ export const teamMembers: TeamMember[] = [
     _id: 'team-1',
     name: 'Vanashree Team',
     role: 'Founders & Volunteers',
-    bio: 'A dedicated group of community leaders, volunteers, and environmental advocates working together since 2010 to transform rural Maharashtra through grassroots action.',
+    bio: 'A dedicated group of community leaders, volunteers, and environmental advocates working together since 2013 to transform rural Maharashtra through grassroots action.',
     photo: '/images/gallery/gallery-10.webp',
     order: 1,
   },
@@ -260,7 +260,7 @@ export const pageContent: PageContent = {
     'Vanashree Gramvikas Pratishthan is a grassroots non-profit organisation rooted in Gatewadi, Parner taluka, Ahilyanagar district, Maharashtra. Dedicated to transforming rural communities through sustainable development, we work directly with villagers to address challenges in environmental conservation, education infrastructure, and community wellbeing.',
   aboutBodyExtended:
     'What began as a small group of concerned citizens planting saplings on barren hillsides has grown into a movement. Today, with over 1,000 trees planted, a school water tank constructed, and regular cleanup drives across the taluka, Vanashree touches lives through three core programmes — afforestation, education & infrastructure, and environmental action — each designed to create lasting, measurable impact in the communities we serve.',
-  aboutEstablished: 'Est. 2010',
+  aboutEstablished: 'Est. 2013',
   aboutLocation: 'Gatewadi, Parner, Maharashtra',
   aboutServiceYears: '15+',
   missionStatement:
@@ -272,7 +272,7 @@ export const pageContent: PageContent = {
     'Whether you plant a tree, teach a child, or share our story — every act of kindness grows into something lasting.',
   ctaButtonText: 'Volunteer With Us',
   footerTagline:
-    'Grassroots NGO empowering rural communities through afforestation, education, and sustainable development since 2010.',
+    'Grassroots NGO empowering rural communities through afforestation, education, and sustainable development since 2013.',
   footerAddress: 'Gatewadi, Parner, Ahilyanagar, Maharashtra, India',
   footerRegistration: 'Registered Trust · Gatewadi, Maharashtra',
   footerEmail: 'vanashreegramvikaspratishthan@gmail.com',
