@@ -8,10 +8,6 @@
 /out/
 /build
 
-# ─── Turbo Build ─────────────────────────────────────────
-.turbo/
-
-
 # ─── Environment variables (NEVER commit secrets) ────────
 .env
 .env.local
@@ -66,22 +62,3 @@ yarn-error.log*
 # ─── Testing ─────────────────────────────────────────────
 /coverage
 next-env.d.ts
-
-# ─── Local runtime & cache file ───────────────────────
-apps/web/.next
-apps/docs/.next
-apps/web/node_modules/
-apps/docs/node_modules/
-packages/ui/dist
-packages/ui/.turbo
-apps/web/package-lock.json
-apps/docs/package-lock.json
-
-
-# ─── Editor / OS ───────────────────────────────────────
-.vscode
-.idea
-*.swp
-*.swo
-*~
-
