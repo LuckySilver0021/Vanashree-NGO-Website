@@ -72,7 +72,7 @@ const orgSchema = {
     addressRegion: "Ahilyanagar, Maharashtra",
     addressCountry: "IN",
   },
-  sameAs: ["https://www.instagram.com/vanashree_ngo/"],
+  sameAs: ["https://www.instagram.com/vanashree.ngo/"],
 };
 
 export default async function RootLayout({

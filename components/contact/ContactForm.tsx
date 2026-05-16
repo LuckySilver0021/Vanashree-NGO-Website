@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 
 const HCaptcha = dynamic(() => import('@hcaptcha/react-hcaptcha'), {
   ssr: false,
-  loading: () => <div className="h-[78px] flex items-center justify-center text-xs text-pebble">Loading captcha…</div>,
+  loading: () => <div className="h-19.5 flex items-center justify-center text-xs text-pebble">Loading captcha…</div>,
 })
 
 interface ContactFormProps {
@@ -136,6 +136,7 @@ export function ContactForm({ toEmail }: ContactFormProps) {
             value={form.email}
             onChange={handleChange}
             className={inputClass}
+            suppressHydrationWarning
           />
         </div>
       </div>

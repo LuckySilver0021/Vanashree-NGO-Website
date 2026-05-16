@@ -51,8 +51,8 @@ export default async function ContactPage() {
             {/* ─── Ways to help section ─── */}
             <FadeIn direction="right">
               <div className="space-y-5">
-                <div className="relative bg-gradient-to-br from-petal to-cream rounded-2xl p-7 border border-moss/15 group hover:shadow-lg transition-all duration-500">
-                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-leaf to-fern rounded-b" />
+                <div className="relative bg-linear-to-br from-petal to-cream rounded-2xl p-7 border border-moss/15 group hover:shadow-lg transition-all duration-500">
+                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-linear-to-r from-leaf to-fern rounded-b" />
                   <div className="w-12 h-12 rounded-xl bg-leaf/10 flex items-center justify-center mb-4">
                     <IconLeaf size={22} className="text-leaf" />
                   </div>
@@ -69,8 +69,8 @@ export default async function ContactPage() {
                   </a>
                 </div>
 
-                <div className="relative bg-gradient-to-br from-sand to-petal rounded-2xl p-7 border border-gold/15 group hover:shadow-lg transition-all duration-500">
-                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-gold to-amber rounded-b" />
+                <div className="relative bg-linear-to-br from-sand to-petal rounded-2xl p-7 border border-gold/15 group hover:shadow-lg transition-all duration-500">
+                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-linear-to-r from-gold to-amber rounded-b" />
                   <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center mb-4">
                     <IconUsers size={22} className="text-gold" />
                   </div>
@@ -88,7 +88,7 @@ export default async function ContactPage() {
                 </div>
 
                 <div className="relative bg-white rounded-2xl p-7 border border-terracotta/15 group hover:shadow-lg transition-all duration-500">
-                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-terracotta to-gold rounded-b" />
+                  <div className="absolute top-0 left-6 right-6 h-0.5 bg-linear-to-r from-terracotta to-gold rounded-b" />
                   <div className="w-12 h-12 rounded-xl bg-terracotta/10 flex items-center justify-center mb-4">
                     <IconBrandInstagram size={22} className="text-terracotta" />
                   </div>
@@ -103,12 +103,39 @@ export default async function ContactPage() {
                     rel="noopener noreferrer"
                     className="text-terracotta hover:text-gold text-sm font-semibold flex items-center gap-1 transition-colors"
                   >
-                    Follow @vanashree_ngo <IconArrowUpRight size={14} />
+                    Follow @vanashree.ngo <IconArrowUpRight size={14} />
                   </a>
                 </div>
               </div>
             </FadeIn>
           </div>
+
+          <FadeIn>
+            <div className="mt-16">
+              <div className="flex flex-col items-start gap-4 mb-4">
+                <p className="text-lg font-semibold text-forest">Where to find us</p>
+                <a
+                  href="https://www.google.com/maps/place/18%C2%B056'13.9%22N+74%C2%B026'36.8%22E/@18.93718,74.443565,17z/data=!3m1!4b1!4m4!3m3!8m2!3d18.93718!4d74.443565!18m1!1e1?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-moss/20 bg-moss/5 px-4 py-2 text-sm font-semibold text-forest transition hover:bg-moss/10"
+                >
+                  Open in Maps
+                  <IconArrowUpRight size={14} />
+                </a>
+              </div>
+              <div className="overflow-hidden rounded-[1.5rem]">
+                <iframe
+                  title="Vanashree location map"
+                  src="https://maps.google.com/maps?q=18.93718,74.443565&z=17&t=k&output=embed"
+                  className="w-full h-80"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          </FadeIn>
 
           {/* ─── Quick contact strip ─── */}
           <FadeIn>
@@ -120,14 +147,14 @@ export default async function ContactPage() {
                 {page.footerEmail && (
                   <a
                     href={`mailto:${page.footerEmail}`}
-                    className="flex items-center gap-3 bg-leaf/5 hover:bg-leaf/10 border border-leaf/15 rounded-2xl px-6 py-4 transition-all duration-200 group w-full sm:w-auto"
+                    className="flex min-w-0 items-center gap-3 bg-leaf/5 hover:bg-leaf/10 border border-leaf/15 rounded-2xl px-6 py-4 transition-all duration-200 group w-full sm:w-auto"
                   >
                     <div className="w-10 h-10 rounded-xl bg-leaf/10 flex items-center justify-center shrink-0">
                       <IconMail size={20} className="text-leaf" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs text-pebble font-medium">Email</p>
-                      <p className="text-sm text-forest font-semibold group-hover:text-leaf transition-colors">{page.footerEmail}</p>
+                      <p className="text-sm text-forest font-semibold group-hover:text-leaf transition-colors break-all whitespace-normal">{page.footerEmail}</p>
                     </div>
                   </a>
                 )}
@@ -161,7 +188,7 @@ export default async function ContactPage() {
                   <div>
                     <p className="text-xs text-pebble font-medium">Instagram</p>
                     <p className="text-sm text-forest font-semibold group-hover:text-terracotta transition-colors flex items-center gap-1">
-                      @vanashree_ngo <IconArrowUpRight size={12} />
+                      @vanashree.ngo <IconArrowUpRight size={12} />
                     </p>
                   </div>
                 </a>
