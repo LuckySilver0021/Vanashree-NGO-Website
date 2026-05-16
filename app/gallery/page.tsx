@@ -38,13 +38,13 @@ export default function GalleryPage() {
             <div className="mt-16 text-center">
               <p className="text-stone text-sm mb-4">Follow us for more updates</p>
               <a
-                href="https://www.instagram.com/vanashree_ngo/"
+                href="https://www.instagram.com/vanashree.ngo/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-forest text-white px-6 py-3 rounded-full font-semibold text-sm hover:bg-canopy transition-colors duration-300 shadow-sm"
               >
                 <IconBrandInstagram size={18} />
-                @vanashree_ngo
+                @vanashree.ngo
                 <IconArrowUpRight size={14} />
               </a>
             </div>
