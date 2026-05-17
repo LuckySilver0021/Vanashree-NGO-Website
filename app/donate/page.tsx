@@ -59,7 +59,7 @@ export default async function DonatePage() {
                 {/* QR card */}
                 <div className="relative rounded-3xl overflow-hidden border border-moss/15 shadow-lg mb-6 bg-petal">
                   {/* Top accent */}
-                  <div className="h-1 bg-gradient-to-r from-leaf via-gold to-fern" />
+                  <div className="h-1 bg-linear-to-r from-leaf via-gold to-fern" />
                   <div className="p-6 flex flex-col items-center gap-5">
                     <QRZoom />
 
@@ -103,7 +103,7 @@ export default async function DonatePage() {
 
                 {/* Bank details card */}
                 <div className="rounded-3xl border border-moss/15 overflow-hidden shadow-sm bg-petal mb-6">
-                  <div className="h-1 bg-gradient-to-r from-gold via-amber to-leaf" />
+                  <div className="h-1 bg-linear-to-r from-gold via-amber to-leaf" />
                   <div className="p-1">
                     <div className="bg-forest/5 rounded-2xl px-5 py-4 mb-1 flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-forest/10 flex items-center justify-center shrink-0">
@@ -163,7 +163,7 @@ export default async function DonatePage() {
 
           {/* ─── Impact reminder ─── */}
           <FadeIn>
-            <div className="mt-20 rounded-3xl bg-gradient-to-br from-forest to-canopy p-8 md:p-10 text-white relative overflow-hidden">
+            <div className="mt-20 rounded-3xl bg-linear-to-br from-forest to-canopy p-8 md:p-10 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-72 h-72 bg-gold/10 blur-3xl rounded-full" />
               <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
                 {[

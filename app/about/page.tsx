@@ -3,11 +3,8 @@ import { getPageContent, getImpactMetrics } from '@/lib/content'
 import { galleryImages } from '@/lib/gallery'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FadeIn } from '@/components/motion/FadeIn'
-import { MissionVisionCards } from '@/components/sections/MissionVisionCards'
 import { ImpactStrip } from '@/components/sections/ImpactStrip'
 import { CTASection } from '@/components/sections/CTASection'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
 import Image from 'next/image'
 import {
   IconCalendar,
@@ -51,7 +48,15 @@ export default async function AboutPage() {
                     <p className="text-gold text-xs font-semibold uppercase tracking-widest">Our Journey</p>
                     <p className="text-pebble text-xs flex items-center gap-1 mt-0.5">
                       <IconCalendar size={12} /> {page.aboutEstablished} &middot;
-                      <IconMapPin size={12} /> {page.aboutLocation}
+                      <IconMapPin size={12} />
+                      <a
+                        href="https://www.google.com/maps/place/18%C2%B056'13.9%22N+74%C2%B026'36.8%22E/@18.93718,74.443565,17z/data=!3m1!4b1!4m4!3m3!8m2!3d18.93718!4d74.443565!18m1!1e1?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-1 hover:text-forest/80 transition-colors"
+                      >
+                        {page.aboutLocation}
+                      </a>
                     </p>
                   </div>
                 </div>
@@ -97,11 +102,62 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      {/* ─── Mission & Vision ─── */}
-      <MissionVisionCards
-        mission={page.missionStatement}
-        vision={page.visionStatement}
-      />
+      {/* ─── FAQ ─── */}
+      <section className="py-16 md:py-24 bg-cream">
+        <div className="max-w-4xl mx-auto px-4 md:px-6">
+          <FadeIn>
+            <div className="text-center mb-12">
+              <p className="text-gold text-sm font-semibold uppercase tracking-widest mb-3">Frequently asked</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-forest">What people ask about our work</h2>
+            </div>
+          </FadeIn>
+          <div className="space-y-4">
+            {[
+              {
+                question: 'What do we do?',
+                answer: [
+                  'We plant trees, nurture young saplings, and water growing plantations.',
+                  'We organize cleanup drives to restore village land and riverbanks.',
+                  'We support healthy communities through green, sustainable action.',
+                ],
+              },
+              {
+                question: 'How do we grow community forests?',
+                answer: [
+                  'We partner with residents and schools to select native saplings.',
+                  'We care for trees throughout the monsoon and dry season.',
+                  'We teach local teams to protect, prune, and monitor every grove.',
+                ],
+              },
+              {
+                question: 'Why join Vanashree’s green movement?',
+                answer: [
+                  'Because our work blends afforestation, cleanup drives, and village-led care.',
+                  'We focus on lasting impact: cleaner fields, stronger soils, and cooler neighborhoods.',
+                  'Every action supports Maharashtra’s rural health, education, and environment.',
+                ],
+              },
+            ].map((faq, idx) => (
+              <FadeIn key={faq.question} delay={idx * 0.05}>
+                <details className="group rounded-3xl border border-moss/20 bg-white p-5 shadow-sm">
+                  <summary className="flex items-center justify-between gap-4 cursor-pointer text-left text-base font-semibold text-forest">
+                    <span>{faq.question}</span>
+                    <IconArrowRight size={20} className="text-forest transition-transform duration-300 group-open:rotate-90" />
+                  </summary>
+                  <div className="faq-content mt-4 space-y-2 text-stone text-sm leading-6">
+                    {faq.answer.map((item) => (
+                      <p key={item} className="flex items-center gap-2">
+                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-forest shrink-0" />
+                        <span className="font-medium text-stone">{item}</span>
+                      </p>
+                    ))}
+                  </div>
+                </details>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ─── Impact strip ─── */}
       <ImpactStrip metrics={metrics} variant="compact" />
