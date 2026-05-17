@@ -234,7 +234,7 @@ This initiative reinforces our commitment to environmental stewardship. A clean 
     coverImage: '/images/gallery/gallery-27.webp',
     publishedAt: '2025-04-10',
     category: 'Environment',
-  },
+  }
 ]
 
 export const teamMembers: TeamMember[] = [
