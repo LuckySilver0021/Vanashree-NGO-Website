@@ -161,3 +161,26 @@ html {
     @apply bg-background text-foreground;
   }
 }
+
+details {
+  transition: all 0.25s ease;
+}
+details summary {
+  list-style: none;
+}
+details summary::-webkit-details-marker {
+  display: none;
+}
+details .faq-content {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  overflow: hidden;
+  will-change: max-height, opacity, transform;
+  transition: max-height 340ms cubic-bezier(.2,.8,.2,1), opacity 300ms ease, transform 320ms cubic-bezier(.2,.8,.2,1);
+}
+details[open] .faq-content {
+  max-height: 1000px;
+  opacity: 1;
+  transform: translateY(0);
+}

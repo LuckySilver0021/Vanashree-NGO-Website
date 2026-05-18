@@ -39,6 +39,8 @@ export interface Post {
   coverImage: string
   publishedAt: string
   category: string
+  galleryImages?: string[]
+  video?: string
 }
 
 export interface TeamMember {
@@ -235,6 +237,25 @@ This initiative reinforces our commitment to environmental stewardship. A clean 
     publishedAt: '2025-04-10',
     category: 'Environment',
   },
+  {
+    _id: 'post-4',
+    title: 'Water Support for Birds & Wildlife During Summer in Jategaon',
+    slug: 'water-support-for-wildlife-jategaon',
+    excerpt:
+      'Vanashree volunteers filled a KT weir with 3 tankers of water in Jategaon to help nearby birds and wild animals during the extreme summer heat.',
+    body: `Today, in Jategaon, Tal. Parner, District Ahilyanagar, Maharashtra, we filled a small KT weir with 3 tankers of water so that the nearby birds and wild animals can have access to water during this extreme summer heat.
+
+This meaningful work was made possible through the generous donation given by Mr. Madhukar Gaikwad. Heartfelt thanks to him for stepping forward to support nature and wildlife in this difficult season.
+
+As temperatures continue to rise across rural Maharashtra, access to water becomes a serious challenge for birds and wild animals. Through this initiative, we hope to provide some relief and encourage more community-led efforts focused on protecting nature and wildlife.`,
+    coverImage: '/images/gallery/gallery-28.webp',
+    galleryImages: [
+      '/videos/kt-1.mp4',
+      '/videos/kt-2.mp4',
+    ],
+    publishedAt: '2026-05-18',
+    category: 'Environment',
+  }
 ]
 
 export const teamMembers: TeamMember[] = [

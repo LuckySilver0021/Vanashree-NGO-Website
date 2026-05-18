@@ -5,6 +5,7 @@ import { FadeIn } from '@/components/motion/FadeIn'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { PostPhotoToggle } from '@/components/sections/PostPhotoToggle'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -44,12 +45,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const post = await getPostBySlug(slug)
   if (!post) notFound()
 
+  const isJategaonWildlifePost = slug === 'water-support-for-wildlife-jategaon'
+
   return (
     <>
       {/* ─── Header ─── */}
       <section className="relative pt-32 pb-12 md:pt-40 md:pb-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-forest via-canopy to-forest" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] rounded-full bg-gold/5 blur-3xl" />
+        <div className="absolute inset-0 bg-linear-to-br from-forest via-canopy to-forest" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-150 h-5 rounded-full bg-gold/5 blur-3xl" />
         <div className="relative z-10 max-w-3xl mx-auto px-4 md:px-6">
           <FadeIn>
             <Link href="/blog" className="inline-flex items-center gap-1.5 text-white/50 hover:text-white text-sm mb-6 transition-colors">
@@ -80,19 +83,29 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
       {/* ─── Cover image ─── */}
       <section className="bg-white">
-        <div className="max-w-4xl mx-auto px-4 md:px-6 -mt-2">
+        <div className="max-w-4xl mx-auto px-4 md:px-6">
           <FadeIn>
-            <div className="aspect-[2/1] rounded-2xl overflow-hidden shadow-xl shadow-forest/10 border border-moss/10">
-              <Image
-                src={post.coverImage}
-                alt={post.title}
-                width={1200}
-                height={600}
-                className="object-cover w-full h-full"
-                sizes="(max-width: 768px) 100vw, 896px"
-                priority
+            {post.galleryImages && post.galleryImages.length > 1 ? (
+              <PostPhotoToggle
+                title={post.title}
+                images={post.galleryImages}
+                frameClassName={
+                  isJategaonWildlifePost ? 'aspect-[8/10] md:aspect-2/1' : undefined
+                }
               />
-            </div>
+            ) : (
+              <div className="aspect-2/1 rounded-2xl overflow-hidden shadow-xl shadow-forest/10 border border-moss/10">
+                <Image
+                  src={post.coverImage}
+                  alt={post.title}
+                  width={1200}
+                  height={600}
+                  className="object-cover w-full h-full"
+                  sizes="(max-width: 768px) 100vw, 896px"
+                  priority
+                />
+              </div>
+            )}
           </FadeIn>
         </div>
       </section>

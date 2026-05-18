@@ -32,7 +32,7 @@ export async function Footer() {
   return (
     <footer className="bg-forest text-white/90 relative overflow-hidden">
       {/* Top accent bar with warm gradient */}
-      <div className="h-1 bg-gradient-to-r from-leaf via-gold to-fern" />
+      <div className="h-1 bg-linear-to-r from-leaf via-gold to-fern" />
 
       {/* Decorative warm glow */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-gold/3 blur-3xl rounded-full" />
@@ -143,7 +143,14 @@ export async function Footer() {
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
                   <IconMapPin size={16} className="text-gold" />
                 </div>
-                <span>{page.footerAddress}</span>
+                <a
+                  href="https://www.google.com/maps/place/18%C2%B056'13.9%22N+74%C2%B026'36.8%22E/@18.93718,74.443565,17z/data=!3m1!4b1!4m4!3m3!8m2!3d18.93718!4d74.443565!18m1!1e1?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors"
+                >
+                  {page.footerAddress}
+                </a>
               </li>
               {page.footerEmail && (
                 <li className="flex items-center gap-3 text-sm text-white/50">
