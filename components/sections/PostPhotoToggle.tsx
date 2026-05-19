@@ -19,7 +19,7 @@ function isVideoSource(src: string) {
   return src.toLowerCase().endsWith('.mp4')
 }
 
-const videoPosterBySrc: Record<string, string> = {
+const videoPoster: Record<string, string> = {
   '/videos/kt-1.mp4': '/images/gallery/kt-1-poster.webp',
   '/videos/kt-2.mp4': '/images/gallery/kt-2-poster.webp',
 }
@@ -73,7 +73,7 @@ export function PostPhotoToggle({
     setIsPlaying(false)
   }
 
-  const activeVideoPoster = posterSrc ?? videoPosterBySrc[activeImage.src] ?? '/images/gallery/gallery-28.webp'
+  const activeVideoPoster = posterSrc ?? videoPoster[activeImage.src] ?? '/images/gallery/gallery-28.webp'
 
   return (
     <div className={cn('relative', className)}>
