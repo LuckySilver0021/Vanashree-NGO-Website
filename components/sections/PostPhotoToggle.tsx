@@ -19,6 +19,11 @@ function isVideoSource(src: string) {
   return src.toLowerCase().endsWith('.mp4')
 }
 
+const videoPosterBySrc: Record<string, string> = {
+  '/videos/kt-1.mp4': '/images/gallery/kt-1-poster.webp',
+  '/videos/kt-2.mp4': '/images/gallery/kt-2-poster.webp',
+}
+
 export function PostPhotoToggle({
   title,
   images,
@@ -68,7 +73,7 @@ export function PostPhotoToggle({
     setIsPlaying(false)
   }
 
-  const videoPoster = posterSrc ?? '/images/gallery/gallery-28.webp'
+  const activeVideoPoster = posterSrc ?? videoPosterBySrc[activeImage.src] ?? '/images/gallery/gallery-28.webp'
 
   return (
     <div className={cn('relative', className)}>
@@ -88,14 +93,14 @@ export function PostPhotoToggle({
                 autoPlay
                 playsInline
                 preload="metadata"
-                poster={videoPoster}
+                poster={activeVideoPoster}
                 className="absolute inset-0 m-auto w-full h-full object-contain bg-black"
                 onEnded={() => setIsPlaying(false)}
               />
             ) : (
               <>
                 <Image
-                  src={videoPoster}
+                  src={activeVideoPoster}
                   alt={title}
                   fill
                   sizes="(max-width: 768px) 100vw, 896px"
