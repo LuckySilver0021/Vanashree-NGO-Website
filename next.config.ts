@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   images: {
     formats: ["image/avif", "image/webp"],
+    qualities: [75, 85],
     remotePatterns: [
       { hostname: "cdn.sanity.io" }, // for Phase 5 — Sanity CMS images
     ],

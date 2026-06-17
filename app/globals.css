@@ -184,3 +184,32 @@ details[open] .faq-content {
   opacity: 1;
   transform: translateY(0);
 }
+
+.leaflet-popup.leaflet-popup-custom,
+.leaflet-popup.leaflet-popup-custom .leaflet-popup-content-wrapper,
+.leaflet-popup-custom,
+.leaflet-popup-content-wrapper.leaflet-popup-custom {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.leaflet-popup.leaflet-popup-custom .leaflet-popup-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+.leaflet-popup.leaflet-popup-custom .leaflet-popup-tip-container,
+.leaflet-popup.leaflet-popup-custom .leaflet-popup-tip,
+.leaflet-popup.tip,
+.leaflet-popup-tip {
+  display: none !important;
+}
+.leaflet-control-attribution,
+.leaflet-control-container .leaflet-control-attribution,
+.leaflet-control-container .leaflet-control-attribution a,
+.leaflet-control-container .leaflet-control-attribution span {
+  display: none !important;
+  visibility: hidden !important;
+}

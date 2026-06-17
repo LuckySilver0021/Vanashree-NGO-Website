@@ -6,6 +6,9 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AppShell } from "@/components/layout/AppShell";
+import { SessionProvider } from "@/components/auth/SessionProvider";
+import { Suspense } from "react";
+import { UserNotFoundHandler } from "@/components/auth/UserNotFoundHandler";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -90,13 +93,18 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
         />
-        <NextIntlClientProvider messages={messages}>
-          <AppShell>
-            <Navbar />
-            <main>{children}</main>
-            <Footer />
-          </AppShell>
-        </NextIntlClientProvider>
+        <SessionProvider>
+          <NextIntlClientProvider messages={messages}>
+            <Suspense fallback={null}>
+              <UserNotFoundHandler />
+            </Suspense>
+            <AppShell>
+              <Navbar />
+              <main>{children}</main>
+              <Footer />
+            </AppShell>
+          </NextIntlClientProvider>
+        </SessionProvider>
       </body>
     </html>
   );
