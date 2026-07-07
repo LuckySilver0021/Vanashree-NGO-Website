@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/auth.server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.email) {
+    const userId = session?.user?.id
+    if (!userId) {
       return NextResponse.json({ hasDetails: false })
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
       select: { fullName: true, age: true, location: true },
     })
 
@@ -32,7 +33,8 @@ export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.email) {
+    const userId = session?.user?.id
+    if (!userId) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
@@ -44,20 +46,20 @@ export async function PUT(request: Request) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
+      select: { id: true },
     })
 
     if (!user) {
-      // Apparently should nt happen but still handling gracefully
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     await prisma.user.update({
-      where: { email: session.user.email },
+      where: { id: userId },
       data: {
         fullName: name.trim(),
         age: typeof age === 'number' ? age : null,
-        location: location?.trim() || null,
+        location: typeof location === 'string' ? location.trim() || null : null,
       },
     })
 

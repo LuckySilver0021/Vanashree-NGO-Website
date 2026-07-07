@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { ConfettiOverlay } from '@/components/motion/ConfettiOverlay'
 import { IconLeaf, IconArrowLeft, IconMapPin, IconSatellite, IconMap } from '@tabler/icons-react'
-import type { Map as LeafletMap, LayerGroup, TileLayer, LeafletMouseEvent, DivIcon } from 'leaflet'
+import type { Map as LeafletMap, LayerGroup, TileLayer, LeafletMouseEvent, DivIcon, CircleMarker } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 interface MarkerData {
@@ -41,6 +41,10 @@ export default function MapsPage() {
   const [samplingImage, setSamplingImage] = useState<File | null>(null)
   const [samplingPreview, setSamplingPreview] = useState<string | null>(null)
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
+  const [savedLocation, setSavedLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [shouldPromptLocation, setShouldPromptLocation] = useState(false)
+  const [locationPrompted, setLocationPrompted] = useState(false)
+  const userLocationMarkerRef = useRef<CircleMarker | null>(null)
   const tileLayerRef = useRef<TileLayer | null>(null)
   const [checkedAuth, setCheckedAuth] = useState(false)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
@@ -85,13 +89,110 @@ export default function MapsPage() {
       })
   }, [])
 
-  // If the login redirect added a `loggedIn` query param, remove it from the address bar
+  // If the login redirect added a `loggedIn` query param, just remove it from the address bar
   useEffect(() => {
     if (searchParams.get('loggedIn')) {
-      // Replace history entry to remove the query param without full reload
       router.replace('/maps', { scroll: false })
     }
   }, [searchParams, router])
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !leafletLoaded || !mapRef.current || !session?.user) return
+
+    const userKey = session.user.id ?? session.user.email
+    if (!userKey) return
+
+    const storageKey = `vanashree-user-location:${userKey}`
+    const raw = localStorage.getItem(storageKey)
+
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+          setSavedLocation(parsed)
+          const map = mapRef.current
+          map.setView([parsed.lat, parsed.lng], 15)
+
+          const L = leafletRef.current
+          if (L) {
+            if (userLocationMarkerRef.current) {
+              userLocationMarkerRef.current.remove()
+            }
+            const marker = L.circleMarker([parsed.lat, parsed.lng], {
+              radius: 8,
+              color: '#166534',
+              fillColor: '#BBF7D0',
+              fillOpacity: 0.9,
+              weight: 2,
+            }).addTo(map)
+            userLocationMarkerRef.current = marker
+            marker.bindPopup('Saved location').openPopup()
+          }
+          setLocationPrompted(true)
+          return
+        }
+      } catch {
+        // ignore invalid saved value and prompt again
+      }
+    }
+
+    setShouldPromptLocation(true)
+  }, [status, leafletLoaded, session?.user, showConfettiMessage])
+
+  useEffect(() => {
+    if (!shouldPromptLocation || locationPrompted || status !== 'authenticated') return
+    if (!leafletLoaded || !mapRef.current || !session?.user) return
+
+    const userKey = session.user.id ?? session.user.email
+    if (!userKey) return
+
+    const storageKey = `vanashree-user-location:${userKey}`
+
+    if (!navigator?.geolocation) {
+      setLocationPrompted(true)
+      showConfettiMessage('Geolocation is not available in this browser', 'error')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        const map = mapRef.current
+
+        if (map) {
+          map.setView([lat, lng], 15)
+          const L = leafletRef.current
+
+          if (L) {
+            if (userLocationMarkerRef.current) {
+              userLocationMarkerRef.current.remove()
+            }
+            const marker = L.circleMarker([lat, lng], {
+              radius: 8,
+              color: '#166534',
+              fillColor: '#BBF7D0',
+              fillOpacity: 0.9,
+              weight: 2,
+            }).addTo(map)
+            userLocationMarkerRef.current = marker
+            marker.bindPopup('Your current location').openPopup()
+          }
+          localStorage.setItem(storageKey, JSON.stringify({ lat, lng }))
+          setSavedLocation({ lat, lng })
+          showConfettiMessage('Showing your current location on the map', 'success')
+        }
+
+        setLocationPrompted(true)
+      },
+      (error) => {
+        console.warn('Geolocation permission denied or unavailable', error)
+        showConfettiMessage('Location request denied. Showing default map view.', 'error')
+        setLocationPrompted(true)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
+    )
+  }, [shouldPromptLocation, locationPrompted, status, leafletLoaded, session?.user, showConfettiMessage])
 
   // Load Leaflet on the client only
   useEffect(() => {
@@ -136,14 +237,14 @@ export default function MapsPage() {
 
     const initialLayer = L.tileLayer(
       viewMode === 'satellite'
-        ? 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        ? 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'
         : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       {
         attribution: viewMode === 'satellite'
-          ? '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+          ? '&copy; OpenStreetMap contributors — OSM France'
           : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxNativeZoom: 19,
-        maxZoom: 24,
+        maxZoom: 19,
       }
     ).addTo(map)
     tileLayerRef.current = initialLayer
@@ -202,23 +303,30 @@ export default function MapsPage() {
       const label = m.label || 'Unnamed Sapling'
       const coords = `${m.lat.toFixed(6)}, ${m.lng.toFixed(6)}`
       // Include a small thumbnail if available
-      const thumbHtml = m.imageUrl ? `<img src="${m.imageUrl}" alt="thumb" style="width:44px;height:44px;object-fit:cover;border-radius:8px;margin-right:10px;">` : ''
+      const topBlock = m.imageUrl
+        ? `<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:14px;">
+             <div>
+               <div style="font-size:18px;font-weight:800;color:#064E3B;line-height:1.1;">${label}</div>
+               <div style="font-size:11px;color:#16A34A;letter-spacing:0.12em;margin-top:4px;text-transform:uppercase;">Sampling name</div>
+             </div>
+             <div style="width:48px;height:48px;border-radius:20px;overflow:hidden;border:1px solid rgba(16,185,129,0.22);box-shadow:0 10px 20px rgba(15,23,42,0.1);">
+               <img src="${m.imageUrl}" alt="sapling" style="width:100%;height:100%;object-fit:cover;display:block;" />
+             </div>
+           </div>`
+        : `<div style="margin-bottom:14px;">
+             <div style="font-size:18px;font-weight:800;color:#064E3B;line-height:1.1;">${label}</div>
+             <div style="font-size:11px;color:#16A34A;letter-spacing:0.12em;margin-top:4px;text-transform:uppercase;">Sampling name</div>
+           </div>`
 
       const popupContent = `
-        <div style="font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif; min-width:230px; background: rgba(236, 253, 245, 0.98); border: 1px solid #C6F6D5; border-radius: 16px; padding: 14px; box-shadow: 0 18px 45px rgba(28, 58, 15, 0.16); color: #1C3B0F;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            ${thumbHtml}
-            <div>
-              <div style="font-weight:700;color:#1C3B0F;font-size:15px;">${label}</div>
-              <div style="font-size:11px;color:#2F855A; margin-top:2px;">Sampling name</div>
-            </div>
+        <div style="font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif; min-width:280px; background: rgba(236, 253, 245, 0.96); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 22px; padding: 18px; box-shadow: 0 26px 54px rgba(15, 50, 26, 0.18); color: #134E4A;">
+          ${topBlock}
+          <div style="padding:14px 0; border-top:1px solid rgba(16, 185, 129, 0.18); border-bottom:1px solid rgba(16, 185, 129, 0.18); margin:12px 0;">
+            <div style="font-size:11px; color:#047857; margin-bottom:6px;">Planted by:</div>
+            <div style="font-size:14px; font-weight:700; color:#0F5132;">${firstName}</div>
           </div>
-          <div style="padding:10px 0;border-top:1px solid rgba(72, 187, 120, 0.18); border-bottom:1px solid rgba(72, 187, 120, 0.18); margin:8px 0;">
-            <div style="font-size:11px;color:#2F855A; margin-bottom:4px;"><span style="font-weight:700;">Planted by:</span></div>
-            <div style="font-size:13px;font-weight:700;color:#1C3B0F;">${firstName}</div>
-          </div>
-          <div style="font-size:11px;color:#4A5568; line-height:1.5;">
-            <div style="font-weight:700;color:#276749; margin-bottom:4px;">Coordinates</div>
+          <div style="font-size:11px; color:#164E63; line-height:1.6;">
+            <div style="font-weight:700; color:#0F5132; margin-bottom:4px;">Coordinates</div>
             <div>${coords}</div>
           </div>
         </div>
@@ -243,11 +351,11 @@ export default function MapsPage() {
     if (!map || !tileLayerRef.current || !L) return
 
     const newUrl = viewMode === 'satellite'
-      ? 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      ? 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'
       : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
     const newAttribution = viewMode === 'satellite'
-      ? '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+      ? '&copy; OpenStreetMap contributors — OSM France'
       : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
     map.removeLayer(tileLayerRef.current)
@@ -281,23 +389,43 @@ export default function MapsPage() {
     }
 
     try {
-      // If there's an image, include it as a base64 data URL in the JSON body
-      let imageData: string | undefined
-      if (samplingImage) {
-        // samplingPreview already holds a data URL
-        imageData = samplingPreview || undefined
+      console.log('creating marker request with image', {
+        samplingImageExists: !!samplingImage,
+        samplingImageName: samplingImage?.name,
+        samplingImageType: samplingImage?.type,
+        samplingImageSize: samplingImage?.size,
+      })
+
+      const formData = new FormData()
+      formData.append('lat', String(pendingMarker.lat))
+      formData.append('lng', String(pendingMarker.lng))
+      formData.append('label', samplingName.trim())
+
+      let uploadImage: File | null = samplingImage
+      if (!uploadImage) {
+        const input = e.currentTarget.querySelector<HTMLInputElement>('input[name="image"]')
+        uploadImage = input?.files?.[0] || null
       }
+
+      if (uploadImage) {
+        formData.append('image', uploadImage)
+      }
+
+      console.log('sending image with create request', {
+        uploadImageExists: !!uploadImage,
+        uploadImageName: uploadImage?.name,
+        uploadImageType: uploadImage?.type,
+        uploadImageSize: uploadImage?.size,
+      })
 
       const res = await fetch('/api/markers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lat: pendingMarker.lat,
-          lng: pendingMarker.lng,
-          label: samplingName.trim(),
-          imageData,
-        }),
+        body: formData,
       })
+
+      console.log('marker upload response status', res.status)
+      const responseBody = await res.clone().json().catch(() => null)
+      console.log('marker upload response body', responseBody)
 
       if (res.ok) {
         const data = await res.json()
@@ -323,7 +451,7 @@ export default function MapsPage() {
       setSamplingError(msg)
       showConfettiMessage(msg, 'error')
     }
-  }, [pendingMarker, samplingName])
+  }, [pendingMarker, samplingName, samplingImage, samplingPreview])
 
   const handleCancelMarker = useCallback(() => {
     setPendingMarker(null)
@@ -465,22 +593,34 @@ export default function MapsPage() {
 
                 <label className="block">
                   <span className="text-slate-300 text-xs font-medium uppercase tracking-[0.18em]">Sampling name</span>
-                  <div className="mt-3 flex items-center gap-3">
-                    <input
-                      id="samplingName"
-                      value={samplingName}
-                      onChange={(event) => setSamplingName(event.target.value)}
-                      className="flex-1 rounded-[24px] border border-slate-800 bg-slate-900/95 px-4 py-4 text-white placeholder:text-slate-500 outline-none transition focus:border-leaf focus:ring-2 focus:ring-leaf/20"
-                      placeholder="e.g. Mango Grove #7"
-                      autoFocus
-                    />
-                    <label className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-slate-800/60 border border-slate-700 cursor-pointer">
+                  <input
+                    id="samplingName"
+                    value={samplingName}
+                    onChange={(event) => setSamplingName(event.target.value)}
+                    className="mt-3 block w-full rounded-[24px] border border-slate-800 bg-slate-900/95 px-4 py-4 text-white placeholder:text-slate-500 outline-none transition focus:border-leaf focus:ring-2 focus:ring-leaf/20"
+                    placeholder="e.g. Mango Grove #7"
+                    autoFocus
+                  />
+                </label>
+
+                <label className="block mt-5">
+                  <span className="text-slate-300 text-xs font-medium uppercase tracking-[0.18em]">Photo (optional)</span>
+                  <div className="mt-3 flex flex-col gap-4">
+                    <label className="flex items-center gap-3 rounded-[24px] border border-dashed border-slate-700 bg-slate-900/60 px-5 py-4 cursor-pointer hover:border-leaf/50 hover:bg-slate-900/80 transition-colors">
                       <input
                         type="file"
+                        name="image"
+                        id="samplingImage"
                         accept="image/*"
                         className="hidden"
                         onChange={(e) => {
                           const f = e.target.files?.[0] || null
+                          console.log('sampling image selected', {
+                            fileExists: !!f,
+                            name: f?.name,
+                            type: f?.type,
+                            size: f?.size,
+                          })
                           setSamplingImage(f)
                           if (f) {
                             const reader = new FileReader()
@@ -491,11 +631,19 @@ export default function MapsPage() {
                           }
                         }}
                       />
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4z" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 16l3.5-5 3 3 4-5 5.5 7" />
+                        <path d="M20 21H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v14a2 2 0 01-2 2z" />
                       </svg>
-                      <span className="text-[10px] text-slate-400 mt-1">Upload Photo of Sampling</span>
+                      <span className="text-sm text-slate-400">
+                        {samplingImage ? samplingImage.name : 'Upload a photo of the sapling'}
+                      </span>
                     </label>
+                    {samplingPreview && (
+                      <div className="w-full rounded-[24px] overflow-hidden border border-slate-700">
+                        <img src={samplingPreview} alt="preview" className="w-full h-52 object-cover" />
+                      </div>
+                    )}
                   </div>
                 </label>
                 {samplingError && (
@@ -540,16 +688,16 @@ export default function MapsPage() {
                       <IconLeaf size={14} className="text-emerald-600" />
                       {selectedMarker.label || 'Unnamed Sapling'}
                     </p>
-                  <p className="text-slate-600 text-xs mt-0.5">
-                    Planted by {selectedMarker.user?.fullName || 'Unknown'}
-                  </p>
-                  <p className="text-slate-500 text-[10px] mt-1">
-                    {selectedMarker.lat.toFixed(5)}, {selectedMarker.lng.toFixed(5)}
-                  </p>
+                    <p className="text-slate-600 text-xs mt-0.5">
+                      Planted by {selectedMarker.user?.fullName || 'Unknown'}
+                    </p>
+                    <p className="text-slate-500 text-[10px] mt-1">
+                      {selectedMarker.lat.toFixed(5)}, {selectedMarker.lng.toFixed(5)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           )}
         </div>
       </section>

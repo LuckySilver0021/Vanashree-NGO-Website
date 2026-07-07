@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/auth.server'
 import MapsClient from './MapsClient'
 
 export default async function MapsPage() {

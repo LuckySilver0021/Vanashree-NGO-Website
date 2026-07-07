@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/auth.server'
 import { prisma } from '@/lib/prisma'
-import fs from 'fs'
-import path from 'path'
+import ImageKit, { toFile } from '@imagekit/nodejs'
+
+const imagekit = new ImageKit({
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '',
+})
+
+function isSafeMarkerPayload(lat: number, lng: number, label: string) {
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && label.length <= 120
+}
 
 export async function GET() {
   try {
@@ -14,31 +21,7 @@ export async function GET() {
       },
     })
 
-    // Ensure markers include an `imageUrl` if a file exists on disk (fallback if DB wasn't updated yet)
-    try {
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-      const allowedExt = ['png', 'jpg', 'jpeg', 'webp']
-      const enhanced = markers.map((m) => {
-        // If DB already has imageUrl, keep it
-        if ((m as any).imageUrl) return m
-        try {
-          for (const ext of allowedExt) {
-            const filename = `${m.id}.${ext}`
-            const filepath = path.join(uploadsDir, filename)
-            if (fs.existsSync(filepath)) {
-              return { ...(m as any), imageUrl: `/uploads/${filename}` }
-            }
-          }
-        } catch (_) {
-          // ignore
-        }
-        return { ...(m as any), imageUrl: null }
-      })
-
-      return NextResponse.json({ markers: enhanced })
-    } catch (err) {
-      return NextResponse.json({ markers })
-    }
+    return NextResponse.json({ markers })
   } catch (error) {
     console.error('Error fetching markers:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -49,23 +32,33 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.email) {
+    const userId = session?.user?.id
+    if (!userId) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { lat, lng, label, imageData } = body
+    const formData = await request.formData()
+    const lat = Number(formData.get('lat'))
+    const lng = Number(formData.get('lng'))
+    const label = String(formData.get('label') || '')
+    const file = formData.get('image') as File | null
 
-    if (typeof lat !== 'number' || typeof lng !== 'number') {
-      return NextResponse.json({ error: 'lat and lng are required numbers' }, { status: 400 })
-    }
+    console.log('marker upload request received', {
+      userId,
+      lat,
+      lng,
+      labelLength: label.length,
+      hasImage: !!file,
+      imageType: file?.type,
+      imageSize: file?.size,
+    })
 
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 })
+    if (!isSafeMarkerPayload(lat, lng, label)) {
+      return NextResponse.json({ error: 'Invalid coordinates or label' }, { status: 400 })
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
       select: { id: true },
     })
 
@@ -74,7 +67,7 @@ export async function POST(request: Request) {
         lat,
         lng,
         label: label?.trim() || null,
-        userId: user?.id || null,
+        userId: user?.id ?? null,
       },
       include: {
         user: {
@@ -85,37 +78,50 @@ export async function POST(request: Request) {
       },
     })
 
-    // If an imageData (data URL) was provided, save it to public/uploads/<markerId>.<ext>
     let imageUrl: string | null = null
     try {
-      if (imageData && typeof imageData === 'string') {
-        const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
-
-        const match = imageData.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/)
-        if (match) {
-          const mime = match[1]
-          const ext = match[2] === 'jpeg' ? 'jpg' : match[2]
-          const b64 = match[3]
-          const buffer = Buffer.from(b64, 'base64')
-          const filename = `${marker.id}.${ext}`
-          const filepath = path.join(uploadsDir, filename)
-          await fs.promises.writeFile(filepath, buffer)
-          imageUrl = `/uploads/${filename}`
+      const image = file
+      if (image && image.size > 0) {
+        if (!image.type.startsWith('image/') || image.size > 5 * 1024 * 1024) {
+          throw new Error('Invalid image upload')
         }
+
+        const ext = image.type.split('/')[1] || 'jpg'
+        console.log('starting image upload to ImageKit', { type: image.type, size: image.size })
+        const fileWithName = await toFile(image, `marker-${marker.id}.${ext}`, { type: image.type })
+        const uploadResult: any = await imagekit.files.upload({
+          file: fileWithName,
+          fileName: `marker-${marker.id}.${ext}`,
+          folder: '/markers',
+          useUniqueFileName: true,
+          isPublished: true,
+        })
+
+        console.log('imagekit upload result', {
+          filePath: uploadResult?.filePath,
+          fileId: uploadResult?.fileId,
+        })
+
+        const urlCandidate = uploadResult.url || uploadResult.thumbnailUrl || null
+        if (typeof urlCandidate === 'string' && urlCandidate.trim()) {
+          imageUrl = urlCandidate.trim()
+        } else if (typeof uploadResult.filePath === 'string' && process.env.IMAGEKIT_URL_ENDPOINT) {
+          const endpoint = process.env.IMAGEKIT_URL_ENDPOINT.replace(/\/$/, '')
+          imageUrl = `${endpoint}${uploadResult.filePath}`
+        }
+      } else {
+        console.log('no image file included in request or file is empty')
       }
     } catch (err) {
-      console.error('Failed to save marker image', err)
+      console.error('Failed to upload marker image to ImageKit', err)
     }
-    // If we saved an image, persist the imageUrl in the DB for this marker
+
     let result: any = marker
     if (imageUrl) {
       try {
-        // cast data to any to avoid type mismatch until Prisma client is regenerated
         result = await prisma.mapMarker.update({
           where: { id: marker.id },
-          // @ts-ignore - imageUrl may not be present in generated types until prisma generate
-          data: { imageUrl: imageUrl } as any,
+          data: { imageUrl },
           include: { user: { select: { fullName: true } } },
         })
       } catch (err) {
@@ -134,7 +140,8 @@ export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.email) {
+    const userId = session?.user?.id
+    if (!userId) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
@@ -146,7 +153,7 @@ export async function DELETE(request: Request) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
       select: { id: true },
     })
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { normalizeEmail } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
@@ -10,8 +11,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ exists: false }, { status: 400 })
     }
 
+    const normalizedEmail = normalizeEmail(email)
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: { id: true },
     })
 

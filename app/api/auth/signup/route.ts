@@ -1,37 +1,63 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { isValidEmail, isValidPhone, normalizeEmail, normalizePhone, sanitizeName } from '@/lib/auth'
+
+const TEMP_MAIL_DOMAINS = [
+  'mailinator.com',
+  'tempmail.com',
+  '10minutemail.com',
+  'guerrillamail.com',
+  'maildrop.cc',
+  'dispostable.com',
+  'trashmail.com',
+]
+
+function isTemporaryEmail(email: string) {
+  const domain = email.split('@')[1]?.toLowerCase()
+  return !!domain && TEMP_MAIL_DOMAINS.includes(domain)
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { fullName, email, phone, password, confirmPassword } = body
 
-    // Validation
-    if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
+    const normalizedFullName = typeof fullName === 'string' ? sanitizeName(fullName) : ''
+    const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : ''
+    const normalizedPhone = typeof phone === 'string' ? normalizePhone(phone) : ''
+
+    if (normalizedFullName.length < 2) {
       return NextResponse.json(
         { error: 'Full name must be at least 2 characters' },
         { status: 400 }
       )
     }
 
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
+    if (!isValidEmail(normalizedEmail)) {
       return NextResponse.json(
         { error: 'Valid email address is required' },
         { status: 400 }
       )
     }
 
-    if (!phone || typeof phone !== 'string' || phone.replace(/\D/g, '').length < 10) {
+    if (isTemporaryEmail(normalizedEmail)) {
       return NextResponse.json(
-        { error: 'Valid phone number is required (minimum 10 digits)' },
+        { error: 'Temporary email addresses are not supported' },
         { status: 400 }
       )
     }
 
-    if (!password || typeof password !== 'string' || password.length < 6) {
+    if (!isValidPhone(normalizedPhone)) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: 'Please enter a valid 10-digit Indian mobile number' },
+        { status: 400 }
+      )
+    }
+
+    if (typeof password !== 'string' || password.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters' },
         { status: 400 }
       )
     }
@@ -43,30 +69,28 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email: email.toLowerCase() }, { phone }],
-      },
-    })
+    const [existingEmail, existingPhone] = await Promise.all([
+      prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } }),
+      prisma.user.findUnique({ where: { phone: normalizedPhone }, select: { id: true } }),
+    ])
 
-    if (existingUser) {
+    if (existingEmail || existingPhone) {
       return NextResponse.json(
-        { error: existingUser.email === email.toLowerCase() ? 'Email already registered' : 'Phone number already registered' },
+        {
+          error: existingEmail ? 'Email already registered' : 'Phone number already registered',
+        },
         { status: 409 }
       )
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10)
+    const salt = await bcrypt.genSalt(12)
     const hashedPassword = await bcrypt.hash(password, salt)
 
-    // Create user
     const user = await prisma.user.create({
       data: {
-        fullName: fullName.trim(),
-        email: email.toLowerCase(),
-        phone: phone.replace(/\s/g, ''),
+        fullName: normalizedFullName,
+        email: normalizedEmail,
+        phone: normalizedPhone,
         hashedPassword,
       },
       select: {
