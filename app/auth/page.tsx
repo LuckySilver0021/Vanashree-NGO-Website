@@ -6,21 +6,17 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   IconAlertCircle,
-  IconArrowLeft,
-  IconCircleCheck,
   IconCheck,
-  IconLeaf,
   IconLoader2,
   IconLock,
   IconMail,
   IconPhone,
-  IconShieldCheck,
   IconSparkles,
   IconUser,
 } from '@tabler/icons-react'
 import { toast, Toaster } from 'sonner'
 import { FadeIn } from '@/components/motion/FadeIn'
-import { isValidEmail, isValidPhone, normalizeEmail, normalizePhone, sanitizeName } from '@/lib/auth'
+import { clearGuestModeCookie, isValidEmail, isValidPhone, normalizeEmail, normalizePhone, sanitizeName, setGuestModeCookie } from '@/lib/auth'
 
 type AuthMode = 'login' | 'signup'
 type EmailCheckState = 'idle' | 'checking' | 'available' | 'exists' | 'invalid' | 'temp-mail'
@@ -38,6 +34,19 @@ const TEMP_MAIL_DOMAINS = [
 function isTemporaryEmail(email: string) {
   const domain = email.split('@')[1]?.toLowerCase()
   return !!domain && TEMP_MAIL_DOMAINS.includes(domain)
+}
+
+function looksLikeCompleteEmail(email: string) {
+  const trimmed = email.trim()
+  if (!trimmed || trimmed.includes(' ') || trimmed.startsWith('@') || trimmed.endsWith('@')) {
+    return false
+  }
+
+  const atIndex = trimmed.indexOf('@')
+  const dotIndex = trimmed.lastIndexOf('.')
+  const domain = trimmed.slice(atIndex + 1)
+
+  return atIndex > 0 && domain.length > 0 && dotIndex > atIndex + 1 && dotIndex < trimmed.length - 1
 }
 
 export default function AuthPage() {
@@ -62,6 +71,16 @@ export default function AuthPage() {
     const email = signupData.email.trim().toLowerCase()
 
     if (!email) {
+      setEmailCheckState('idle')
+      setEmailCheckMessage('')
+      if (emailToastRef.current) {
+        toast.dismiss(emailToastRef.current)
+        emailToastRef.current = null
+      }
+      return
+    }
+
+    if (!looksLikeCompleteEmail(email)) {
       setEmailCheckState('idle')
       setEmailCheckMessage('')
       if (emailToastRef.current) {
@@ -96,7 +115,6 @@ export default function AuthPage() {
     if (emailToastRef.current) {
       toast.dismiss(emailToastRef.current)
     }
-    emailToastRef.current = toast.loading('Checking if this email is already registered…')
 
     const timeoutId = window.setTimeout(async () => {
       try {
@@ -109,7 +127,7 @@ export default function AuthPage() {
           if (emailToastRef.current) {
             toast.dismiss(emailToastRef.current)
           }
-          toast.error('This email is already registered')
+          
           emailToastRef.current = null
         } else {
           setEmailCheckState('available')
@@ -138,6 +156,22 @@ export default function AuthPage() {
     }
   }, [signupData.email])
 
+  const handleGuestContinue = async () => {
+    setError('')
+    setLoading(true)
+
+    try {
+      clearGuestModeCookie()
+      setGuestModeCookie()
+      setSuccessMessage('Continuing as guest...')
+      setTimeout(() => router.replace('/maps'), 600)
+    } catch {
+      setError('Unable to continue as guest right now.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleLoginSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
@@ -146,6 +180,8 @@ export default function AuthPage() {
     try {
       const email = normalizeEmail(loginData.email)
       const password = loginData.password
+
+      clearGuestModeCookie()
 
       const result = await signIn('credentials', {
         email,
@@ -239,6 +275,8 @@ export default function AuthPage() {
         return
       }
 
+      clearGuestModeCookie()
+
       setSuccessMessage('Account created! Signing you in...')
       setSignupData({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' })
       setEmailCheckState('idle')
@@ -273,22 +311,27 @@ export default function AuthPage() {
     signupData.password === signupData.confirmPassword
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(168,197,122,0.22),transparent_32%),linear-gradient(135deg,#f7f8f2_0%,#eef2e6_50%,#f9f4e8_100%)] px-4 py-10 sm:px-6 lg:px-8">
-      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(28,59,15,0.05),transparent_30%,rgba(200,160,81,0.06))]" />
-      <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-leaf/10 blur-3xl" />
-      <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
+    <section className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(168,197,122,0.3),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(200,160,81,0.16),transparent_26%),linear-gradient(135deg,#f8f7f0_0%,#eef3e4_50%,#f7efe0_100%)] px-4 py-10 sm:px-6 lg:px-8">
+      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(28,59,15,0.06),transparent_24%,rgba(200,160,81,0.08))]" />
+      <div className="absolute -left-8 -top-8 h-72 w-72 rounded-full bg-leaf/15 blur-3xl" />
+      <div className="absolute -bottom-8 -right-8 h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.7),transparent_56%)]" />
 
       <div className="relative mx-auto flex min-h-screen max-w-2xl items-center justify-center">
         <FadeIn direction="right" className="w-full">
-          <div className="rounded-[28px] border border-white/70 bg-white/80 p-6 shadow-[0_24px_80px_-30px_rgba(28,59,15,0.35)] backdrop-blur-xl sm:p-8">
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative overflow-hidden rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_35px_100px_-35px_rgba(28,59,15,0.42)] ring-1 ring-black/5 backdrop-blur-2xl sm:p-8">
+            <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(255,255,255,0.95),rgba(255,255,255,0.68))]" />
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full border border-forest/10" />
+            <div className="absolute -bottom-12 -left-8 h-36 w-36 rounded-full border border-gold/20" />
+            <div className="relative">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-stone-200/70 bg-stone-50/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-pebble">Welcome</p>
                   <h2 className="mt-1 text-2xl font-semibold text-forest">
                     {mode === 'login' ? 'Sign in' : 'Create account'}
                   </h2>
                 </div>
-                <div className="flex rounded-full bg-cream p-1">
+                <div className="flex rounded-full bg-white/80 p-1 shadow-[0_8px_24px_-16px_rgba(28,59,15,0.35)] ring-1 ring-black/5">
                   {(['login', 'signup'] as AuthMode[]).map((option) => (
                     <button
                       key={option}
@@ -298,7 +341,7 @@ export default function AuthPage() {
                         setError('')
                         setSuccessMessage('')
                       }}
-                      className={`rounded-full px-3 py-2 text-sm font-medium transition-all ${mode === option ? 'bg-forest text-white shadow-sm shadow-forest/20' : 'text-stone hover:text-forest'}`}
+                      className={`rounded-full px-3 py-2 text-sm font-medium transition-all ${mode === option ? 'bg-forest text-white shadow-sm shadow-forest/20' : 'text-stone hover:bg-stone-100 hover:text-forest'}`}
                     >
                       {option === 'login' ? 'Sign in' : 'Create account'}
                     </button>
@@ -477,12 +520,29 @@ export default function AuthPage() {
                   </div>
                 </form>
               )}
+
+              <div className="mt-6 border-t border-stone-200/70 pt-5">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-stone-200" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-pebble">or</span>
+                  <div className="h-px flex-1 bg-stone-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGuestContinue}
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-leaf/30 bg-cream/80 px-4 py-3 text-sm font-semibold text-forest shadow-[0_10px_24px_-16px_rgba(28,59,15,0.35)] transition-all hover:bg-cream hover:shadow-[0_12px_28px_-14px_rgba(28,59,15,0.4)] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <IconSparkles size={16} />
+                  Continue as guest
+                </button>
+              </div>
             </div>
-          </FadeIn>
-        </div>
+          </div>
+        </FadeIn>
+      </div>
 
       <Toaster position="top-right" richColors />
     </section>
   )
 }
-

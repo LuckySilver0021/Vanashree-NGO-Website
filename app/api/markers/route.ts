@@ -28,8 +28,17 @@ export async function GET() {
   }
 }
 
+function isGuestModeRequest(request: Request) {
+  const cookieHeader = request.headers.get('cookie') ?? ''
+  return cookieHeader.split(';').some((entry) => entry.trim().startsWith('vanashree-guest='))
+}
+
 export async function POST(request: Request) {
   try {
+    if (isGuestModeRequest(request)) {
+      return NextResponse.json({ error: 'Guest users can only view existing saplings.' }, { status: 403 })
+    }
+
     const session = await getServerSession(authOptions)
 
     const userId = session?.user?.id
@@ -89,7 +98,7 @@ export async function POST(request: Request) {
         const ext = image.type.split('/')[1] || 'jpg'
         console.log('starting image upload to ImageKit', { type: image.type, size: image.size })
         const fileWithName = await toFile(image, `marker-${marker.id}.${ext}`, { type: image.type })
-        const uploadResult: any = await imagekit.files.upload({
+        const uploadResult = await imagekit.files.upload({
           file: fileWithName,
           fileName: `marker-${marker.id}.${ext}`,
           folder: '/markers',
@@ -116,7 +125,7 @@ export async function POST(request: Request) {
       console.error('Failed to upload marker image to ImageKit', err)
     }
 
-    let result: any = marker
+    let result = marker
     if (imageUrl) {
       try {
         result = await prisma.mapMarker.update({

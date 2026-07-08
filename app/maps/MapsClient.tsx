@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback, type FormEvent } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { ConfettiOverlay } from '@/components/motion/ConfettiOverlay'
+import { clearGuestModeCookie, hasGuestModeCookie } from '@/lib/auth'
 import { IconLeaf, IconArrowLeft, IconMapPin, IconSatellite, IconMap } from '@tabler/icons-react'
 import type { Map as LeafletMap, LayerGroup, TileLayer, LeafletMouseEvent, DivIcon, CircleMarker } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -18,6 +19,11 @@ interface MarkerData {
   imageUrl?: string | null
 }
 
+const FACIL_MAP_STREET_URL = process.env.NEXT_PUBLIC_FACILMAPS_STREET_TILE_URL?.trim() || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+const FACIL_MAP_SATELLITE_URL = process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_TILE_URL?.trim() || 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const FACIL_MAP_STREET_ATTRIBUTION = process.env.NEXT_PUBLIC_FACILMAPS_STREET_ATTRIBUTION ?? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+const FACIL_MAP_SATELLITE_ATTRIBUTION = process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_ATTRIBUTION ?? '&copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+
 export default function MapsPage() {
   const { data: session, status } = useSession()
   const searchParams = useSearchParams()
@@ -25,14 +31,14 @@ export default function MapsPage() {
   const mapRef = useRef<LeafletMap | null>(null)
   const markersLayerRef = useRef<LayerGroup | null>(null)
   const treeIconRef = useRef<DivIcon | null>(null)
-  const leafletRef = useRef<any>(null)
+  const leafletRef = useRef<typeof import('leaflet') | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [confettiMessage, setConfettiMessage] = useState('')
   const [confettiType, setConfettiType] = useState<'success' | 'error'>('success')
   const [confettiAction, setConfettiAction] = useState<'redirect' | 'none'>('none')
   const [confettiRedirectUrl, setConfettiRedirectUrl] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'street' | 'satellite'>('satellite')
+  const [viewMode, setViewMode] = useState<'street' | 'satellite'>('street')
   const [markers, setMarkers] = useState<MarkerData[]>([])
   const [placing, setPlacing] = useState(false)
   const [pendingMarker, setPendingMarker] = useState<{ lat: number; lng: number } | null>(null)
@@ -47,6 +53,9 @@ export default function MapsPage() {
   const userLocationMarkerRef = useRef<CircleMarker | null>(null)
   const tileLayerRef = useRef<TileLayer | null>(null)
   const [checkedAuth, setCheckedAuth] = useState(false)
+  const [guestMode, setGuestMode] = useState(() => hasGuestModeCookie())
+  const [guestNoticeVisible, setGuestNoticeVisible] = useState(false)
+  const [guestNoticeFading, setGuestNoticeFading] = useState(false)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
   const showConfettiMessage = useCallback((message: string, type: 'success' | 'error' = 'error', action: 'redirect' | 'none' = 'none', redirectUrl: string | null = null) => {
@@ -57,16 +66,52 @@ export default function MapsPage() {
     setShowConfetti(true)
   }, [])
 
+  useEffect(() => {
+    const cookieGuestMode = hasGuestModeCookie()
+    setGuestMode(cookieGuestMode)
+  }, [])
+
+  useEffect(() => {
+    if (!guestMode) {
+      setGuestNoticeVisible(false)
+      setGuestNoticeFading(false)
+      return
+    }
+
+    setGuestNoticeVisible(true)
+    setGuestNoticeFading(false)
+
+    const fadeTimer = window.setTimeout(() => setGuestNoticeFading(true), 4000)
+    const hideTimer = window.setTimeout(() => setGuestNoticeVisible(false), 5000)
+
+    return () => {
+      window.clearTimeout(fadeTimer)
+      window.clearTimeout(hideTimer)
+    }
+  }, [guestMode])
+
+  useEffect(() => {
+    if (guestMode) {
+      setViewMode('street')
+    }
+  }, [guestMode])
+
   // Route protection: if not authenticated, show confetti and redirect
   useEffect(() => {
     if (status === 'loading') return
+
+    if (guestMode) {
+      setCheckedAuth(true)
+      return
+    }
+
     if (status === 'unauthenticated' && !checkedAuth) {
       setCheckedAuth(true)
       showConfettiMessage('Please log in first!', 'error', 'redirect', '/auth')
     } else if (status === 'authenticated') {
       setCheckedAuth(true)
     }
-  }, [status, checkedAuth, showConfettiMessage])
+  }, [status, checkedAuth, guestMode, showConfettiMessage])
 
   const handleConfettiComplete = useCallback(() => {
     setShowConfetti(false)
@@ -97,7 +142,7 @@ export default function MapsPage() {
   }, [searchParams, router])
 
   useEffect(() => {
-    if (status !== 'authenticated' || !leafletLoaded || !mapRef.current || !session?.user) return
+    if (status !== 'authenticated' || guestMode || !leafletLoaded || !mapRef.current || !session?.user) return
 
     const userKey = session.user.id ?? session.user.email
     if (!userKey) return
@@ -140,7 +185,7 @@ export default function MapsPage() {
   }, [status, leafletLoaded, session?.user, showConfettiMessage])
 
   useEffect(() => {
-    if (!shouldPromptLocation || locationPrompted || status !== 'authenticated') return
+    if (!shouldPromptLocation || locationPrompted || status !== 'authenticated' || guestMode) return
     if (!leafletLoaded || !mapRef.current || !session?.user) return
 
     const userKey = session.user.id ?? session.user.email
@@ -200,7 +245,8 @@ export default function MapsPage() {
 
     import('leaflet').then((L) => {
       leafletRef.current = L
-      delete (L.Icon.Default.prototype as any)._getIconUrl
+      const defaultIconPrototype = L.Icon.Default.prototype as typeof L.Icon.Default.prototype & { _getIconUrl?: unknown }
+      delete defaultIconPrototype._getIconUrl
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -229,7 +275,7 @@ export default function MapsPage() {
       center: [19.0, 74.5], // Gatewadi, Maharashtra
       zoom: 14,
       zoomControl: false,
-      maxZoom: 24,
+      maxZoom: 22,
       attributionControl: false,
     })
 
@@ -237,14 +283,14 @@ export default function MapsPage() {
 
     const initialLayer = L.tileLayer(
       viewMode === 'satellite'
-        ? 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        ? FACIL_MAP_SATELLITE_URL
+        : FACIL_MAP_STREET_URL,
       {
         attribution: viewMode === 'satellite'
-          ? '&copy; OpenStreetMap contributors — OSM France'
-          : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          ? FACIL_MAP_SATELLITE_ATTRIBUTION
+          : FACIL_MAP_STREET_ATTRIBUTION,
         maxNativeZoom: 19,
-        maxZoom: 19,
+        maxZoom: 22,
       }
     ).addTo(map)
     tileLayerRef.current = initialLayer
@@ -284,6 +330,9 @@ export default function MapsPage() {
   }, [leafletLoaded])
 
   const myMarkerCount = session?.user?.id ? markers.filter((m) => m.userId === session.user.id).length : 0
+  const canAddMarkers = status === 'authenticated' && !guestMode
+  const headerTitle = guestMode ? 'Vanashree Facility Map' : 'Vanashree Plantation Map'
+  const headerSubtitle = guestMode ? 'Viewing existing saplings in guest mode' : 'Click to mark where you planted'
 
   // Render markers on map
   useEffect(() => {
@@ -351,25 +400,25 @@ export default function MapsPage() {
     if (!map || !tileLayerRef.current || !L) return
 
     const newUrl = viewMode === 'satellite'
-      ? 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'
-      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      ? FACIL_MAP_SATELLITE_URL
+      : FACIL_MAP_STREET_URL
 
     const newAttribution = viewMode === 'satellite'
-      ? '&copy; OpenStreetMap contributors — OSM France'
-      : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      ? FACIL_MAP_SATELLITE_ATTRIBUTION
+      : FACIL_MAP_STREET_ATTRIBUTION
 
     map.removeLayer(tileLayerRef.current)
     const newLayer = L.tileLayer(newUrl, {
       attribution: newAttribution,
       maxNativeZoom: 19,
-      maxZoom: 24,
+      maxZoom: 22,
     }).addTo(map)
     tileLayerRef.current = newLayer
   }, [viewMode])
 
   // Handle map click to place marker
   const handleMapClick = useCallback((e: LeafletMouseEvent) => {
-    if (!placing || pendingMarker) return
+    if (!placing || pendingMarker || !canAddMarkers) return
 
     const { lat, lng } = e.latlng
     setPendingMarker({ lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) })
@@ -382,6 +431,12 @@ export default function MapsPage() {
   const handleCreateMarker = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!pendingMarker) return
+
+    if (!canAddMarkers) {
+      setSamplingError('Guest users can only view existing saplings.')
+      showConfettiMessage('Guest users can only view existing saplings.', 'error')
+      return
+    }
 
     if (!samplingName.trim()) {
       setSamplingError('Sampling name is required.')
@@ -447,11 +502,11 @@ export default function MapsPage() {
       }
     } catch (err) {
       console.error('Failed to save marker', err)
-      const msg = (err as any)?.message || 'Failed to save marker. Please try again.'
+      const msg = err instanceof Error ? err.message : 'Failed to save marker. Please try again.'
       setSamplingError(msg)
       showConfettiMessage(msg, 'error')
     }
-  }, [pendingMarker, samplingName, samplingImage, samplingPreview])
+  }, [pendingMarker, samplingName, samplingImage, samplingPreview, canAddMarkers, showConfettiMessage])
 
   const handleCancelMarker = useCallback(() => {
     setPendingMarker(null)
@@ -482,6 +537,7 @@ export default function MapsPage() {
   }, [placing, handleMapClick])
 
   const handleLogout = useCallback(() => {
+    clearGuestModeCookie()
     signOut({ callbackUrl: '/' })
   }, [])
 
@@ -520,8 +576,8 @@ export default function MapsPage() {
               <IconMapPin size={18} className="text-leaf" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-white font-bold text-sm">Vanashree Plantation Map</h1>
-              <p className="text-white/40 text-[10px]">Click to mark where you planted</p>
+              <h1 className="text-white font-bold text-sm">{headerTitle}</h1>
+              <p className="text-white/40 text-[10px]">{headerSubtitle}</p>
             </div>
           </div>
 
@@ -540,15 +596,22 @@ export default function MapsPage() {
 
             {/* Place marker button */}
             <button
-              onClick={() => setPlacing(!placing)}
+              onClick={() => {
+                if (!canAddMarkers) {
+                  showConfettiMessage('Guest users can only view existing saplings.', 'error')
+                  return
+                }
+                setPlacing(!placing)
+              }}
+              disabled={!canAddMarkers}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors font-medium ${
                 placing
                   ? 'bg-leaf text-white'
                   : 'bg-white/10 hover:bg-white/15 text-white'
-              }`}
+              } ${!canAddMarkers ? 'cursor-not-allowed opacity-70' : ''}`}
             >
               <IconLeaf size={14} />
-              {placing ? 'Cancel' : 'Plant a Tree'}
+              {canAddMarkers ? (placing ? 'Cancel' : 'Plant a Tree') : 'Guest view'}
             </button>
 
             <button
@@ -565,9 +628,15 @@ export default function MapsPage() {
         <div className="flex-1 relative min-h-0">
           <div ref={mapContainerRef} className="absolute inset-0" />
 
+          {guestMode && guestNoticeVisible && (
+            <div className={`absolute top-16 left-1/2 -translate-x-1/2 z-1000 bg-amber-500/90 backdrop-blur-md rounded-full px-5 py-2 border border-white/10 shadow-xl transition-opacity duration-1000 ${guestNoticeFading ? 'opacity-0' : 'opacity-100'}`}>
+              <p className="text-white text-xs font-medium">In Guest mode you can only view existing saplings, but you cannot add new ones.</p>
+            </div>
+          )}
+
           {/* Placing mode indicator */}
           {placing && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/70 backdrop-blur-md rounded-full px-5 py-2 border border-white/10 shadow-xl">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-1000 bg-black/70 backdrop-blur-md rounded-full px-5 py-2 border border-white/10 shadow-xl">
               <p className="text-white text-xs font-medium flex items-center gap-2">
                 <IconLeaf size={14} className="text-leaf" />
                 Click anywhere on the map to select a planting location
@@ -576,10 +645,10 @@ export default function MapsPage() {
           )}
 
           {pendingMarker && (
-            <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xl">
+            <div className="absolute inset-0 z-1100 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xl">
               <form
                 onSubmit={handleCreateMarker}
-                className="w-full max-w-[28rem] rounded-[32px] border border-white/10 bg-slate-950/95 p-6 shadow-[0_32px_80px_rgba(15,23,42,0.55)]"
+                className="w-full max-w-md rounded-[32px] border border-white/10 bg-slate-950/95 p-6 shadow-[0_32px_80px_rgba(15,23,42,0.55)]"
               >
                 <div className="mb-5">
                   <p className="text-white text-xl font-semibold tracking-tight">New planting marker</p>
@@ -670,14 +739,14 @@ export default function MapsPage() {
           )}
 
           {/* Marker count badge */}
-          <div className="absolute bottom-20 left-4 z-[1000] bg-black/60 backdrop-blur-md rounded-lg px-3 py-1.5 border border-white/10 flex items-center gap-2">
+          <div className="absolute bottom-20 left-4 z-1000 bg-black/60 backdrop-blur-md rounded-lg px-3 py-1.5 border border-white/10 flex items-center gap-2">
             <IconLeaf size={14} className="text-leaf" />
             <span className="text-white/80 text-xs font-medium">{myMarkerCount} trees marked</span>
           </div>
 
           {/* Selected marker popup */}
           {selectedMarker && (
-            <div className="absolute bottom-4 right-20 z-[1000] bg-emerald-50/95 backdrop-blur-md rounded-xl px-4 py-3 border border-emerald-200/70 shadow-xl min-w-[200px]">
+            <div className="absolute bottom-4 right-20 z-1000 bg-emerald-50/95 backdrop-blur-md rounded-xl px-4 py-3 border border-emerald-200/70 shadow-xl min-w-50">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   {selectedMarker.imageUrl && (

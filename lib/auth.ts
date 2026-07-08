@@ -22,3 +22,18 @@ export function sanitizeName(value: string) {
   return value.trim().replace(/\s+/g, ' ')
 }
 
+export function setGuestModeCookie() {
+  if (typeof document === 'undefined') return
+  document.cookie = 'vanashree-guest=true; path=/; max-age=604800; SameSite=Lax'
+}
+
+export function clearGuestModeCookie() {
+  if (typeof document === 'undefined') return
+  document.cookie = 'vanashree-guest=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+}
+
+export function hasGuestModeCookie() {
+  if (typeof document === 'undefined') return false
+  return document.cookie.split(';').some((entry) => entry.trim().startsWith('vanashree-guest='))
+}
+
