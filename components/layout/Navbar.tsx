@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IconMenu2, IconX, IconArrowRight } from '@tabler/icons-react'
 // import { LanguageSwitcher } from './LanguageSwitcher'
 import { useTranslations } from 'next-intl'
+import { useSession } from 'next-auth/react'
 
 const NAV_HREFS = [
   { href: '/', key: 'home' },
@@ -21,23 +22,18 @@ const NAV_HREFS = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
   const t = useTranslations('nav')
+  const { data: session } = useSession()
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  // Hide navbar on maps page
+  if (pathname.startsWith('/maps')) return null
+
+  const joinHref = session?.user ? '/maps' : '/auth'
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${
-        scrolled
-          ? 'bg-forest/95 backdrop-blur-xl shadow-lg shadow-black/10'
-          : 'bg-transparent'
-      }`}
+      className="fixed top-0 left-0 right-0 z-40 bg-forest/95 backdrop-blur-xl shadow-lg shadow-black/10 transition-all duration-500"
     >
       <div className="max-w-6xl mx-auto px-4 md:px-6">
         <div className="flex items-center justify-between h-16 md:h-18">
@@ -80,6 +76,12 @@ export function Navbar() {
             })}
             <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2">
               {/* <LanguageSwitcher /> */}
+              <Link
+                href={joinHref}
+                className="bg-leaf hover:bg-fern text-white text-sm font-bold px-5 py-2 rounded-full transition-all duration-300 shadow-sm shadow-leaf/20 hover:scale-[1.02]"
+              >
+                {t('joinNow')}
+              </Link>
               <Link
                 href="/contact"
                 className="bg-gold/90 hover:bg-gold text-forest text-sm font-bold px-5 py-2 rounded-full transition-all duration-300 shadow-sm shadow-gold/20 flex items-center gap-1.5 hover:scale-[1.02]"
@@ -129,7 +131,14 @@ export function Navbar() {
                   </Link>
                 )
               })}
-              <div className="mt-3 pt-3 border-t border-white/10">
+              <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+              <Link
+                  href={joinHref}
+                  onClick={() => setOpen(false)}
+                  className="bg-leaf text-white text-sm font-bold px-4 py-3 rounded-xl text-center hover:bg-fern transition-colors flex items-center justify-center gap-2"
+                >
+                  {t('joinNow')}
+                </Link>
                 <Link
                   href="/contact"
                   onClick={() => setOpen(false)}

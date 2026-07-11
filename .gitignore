@@ -63,3 +63,5 @@ yarn-error.log*
 # ─── Testing ─────────────────────────────────────────────
 /coverage
 next-env.d.ts
+
+/lib/generated/prisma

@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String   @id @default(cuid())
+  fullName        String
+  email           String   @unique
+  phone           String   @unique
+  hashedPassword  String
+  age             Int?
+  location        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  markers         MapMarker[]
+  timelineEntries TimelineEntry[]
+
+  @@map("users")
+}
+
+model MapMarker {
+  id        String   @id @default(cuid())
+  lat       Float
+  lng       Float
+  label     String?
+  imageUrl  String?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  entries   TimelineEntry[]
+  createdAt DateTime @default(now())
+
+  @@map("map_markers")
+}
+
+model TimelineEntry {
+  id          String   @id @default(cuid())
+  markerId    String
+  marker      MapMarker @relation(fields: [markerId], references: [id])
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  title       String
+  description String
+  imageUrl    String?
+  date        DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("timeline_entries")
+}
