@@ -18,10 +18,27 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { fullName: true } },
+        entries: {
+          orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+          take: 1,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            imageUrl: true,
+            date: true,
+            createdAt: true,
+          },
+        },
       },
     })
 
-    return NextResponse.json({ markers })
+    const markersWithLatest = markers.map((marker) => ({
+      ...marker,
+      latestEntry: marker.entries[0] ?? null,
+    }))
+
+    return NextResponse.json({ markers: markersWithLatest })
   } catch (error) {
     console.error('Error fetching markers:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

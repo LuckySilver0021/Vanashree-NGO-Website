@@ -25,6 +25,7 @@
     "googleapis": "^171.4.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.576.0",
+    "mappls-web-maps": "^3.8.1",
     "next": "^16.2.7",
     "next-auth": "^4.24.14",
     "next-intl": "^4.8.3",
@@ -32,6 +33,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-leaflet": "^5.0.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0"
   },

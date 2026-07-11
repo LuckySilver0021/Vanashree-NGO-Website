@@ -23,6 +23,7 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   markers         MapMarker[]
+  timelineEntries TimelineEntry[]
 
   @@map("users")
 }
@@ -35,7 +36,24 @@ model MapMarker {
   imageUrl  String?
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
+  entries   TimelineEntry[]
   createdAt DateTime @default(now())
 
   @@map("map_markers")
+}
+
+model TimelineEntry {
+  id          String   @id @default(cuid())
+  markerId    String
+  marker      MapMarker @relation(fields: [markerId], references: [id])
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  title       String
+  description String
+  imageUrl    String?
+  date        DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("timeline_entries")
 }

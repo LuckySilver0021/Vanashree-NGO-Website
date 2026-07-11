@@ -5,9 +5,18 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { ConfettiOverlay } from '@/components/motion/ConfettiOverlay'
 import { clearGuestModeCookie, hasGuestModeCookie } from '@/lib/auth'
-import { IconLeaf, IconArrowLeft, IconMapPin, IconSatellite, IconMap } from '@tabler/icons-react'
+import { IconLeaf, IconArrowLeft, IconMapPin, IconSatellite, IconMap, IconPencil, IconPlus } from '@tabler/icons-react'
 import type { Map as LeafletMap, LayerGroup, TileLayer, LeafletMouseEvent, DivIcon, CircleMarker } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+
+interface TimelineEntry {
+  id: string
+  title: string
+  description: string
+  imageUrl?: string | null
+  date: string
+  createdAt: string
+}
 
 interface MarkerData {
   id: string
@@ -17,12 +26,42 @@ interface MarkerData {
   userId: string | null
   user?: { fullName: string } | null
   imageUrl?: string | null
+  latestEntry?: TimelineEntry | null
 }
 
-const FACIL_MAP_STREET_URL = process.env.NEXT_PUBLIC_FACILMAPS_STREET_TILE_URL?.trim() || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-const FACIL_MAP_SATELLITE_URL = process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_TILE_URL?.trim() || 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-const FACIL_MAP_STREET_ATTRIBUTION = process.env.NEXT_PUBLIC_FACILMAPS_STREET_ATTRIBUTION ?? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-const FACIL_MAP_SATELLITE_ATTRIBUTION = process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_ATTRIBUTION ?? '&copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+/* ── Mapbox tile configuration ──────────────────────────────────────
+ * A Mapbox access token enables tiles that are crisp at z20–z22.
+ * If no token is set, the map gracefully falls back to OSM + ESRI.
+ * Get a free token at https://account.mapbox.com/access-tokens/
+ */
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() || ''
+
+/* Street tiles — Mapbox Outdoors v12 @2x (crisp at high zoom) when token present, otherwise OSM */
+const STREET_TILE_URL = MAPBOX_TOKEN
+  ? `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+  : (process.env.NEXT_PUBLIC_FACILMAPS_STREET_TILE_URL?.trim() || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
+
+const STREET_ATTRIBUTION = MAPBOX_TOKEN
+  ? '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+  : (process.env.NEXT_PUBLIC_FACILMAPS_STREET_ATTRIBUTION ?? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors')
+
+/* Satellite tiles — Mapbox Satellite v9 @2x when token present, otherwise ESRI */
+const SATELLITE_TILE_URL = MAPBOX_TOKEN
+  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+  : (process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_TILE_URL?.trim() || 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+
+const SATELLITE_ATTRIBUTION = MAPBOX_TOKEN
+  ? '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+  : (process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_ATTRIBUTION ?? '&copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community')
+
+/* ── Zoom constants ────────────────────────────────
+ * Mapbox 512@2x tiles are sharp up to z22.
+ * At the Gatewadi latitude (~19°N) z22 ≈ 1.1 m/pixel.
+ * For even finer grain we allow z23–z25 via standard over-zoom.
+ */
+const MAX_MAP_ZOOM = 25
+const MIN_MAP_ZOOM = 3
+const MAX_NATIVE_ZOOM = 22   // highest zoom at which tiles are natively crisp
 
 export default function MapsPage() {
   const { data: session, status } = useSession()
@@ -46,6 +85,7 @@ export default function MapsPage() {
   const [samplingError, setSamplingError] = useState('')
   const [samplingImage, setSamplingImage] = useState<File | null>(null)
   const [samplingPreview, setSamplingPreview] = useState<string | null>(null)
+  const [isSavingMarker, setIsSavingMarker] = useState(false)
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
   const [savedLocation, setSavedLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [shouldPromptLocation, setShouldPromptLocation] = useState(false)
@@ -140,6 +180,20 @@ export default function MapsPage() {
       router.replace('/maps', { scroll: false })
     }
   }, [searchParams, router])
+
+  useEffect(() => {
+    const selectedId = searchParams.get('selected')
+    if (!selectedId || markers.length === 0) return
+
+    const selected = markers.find((marker) => marker.id === selectedId)
+    if (!selected) return
+
+    setSelectedMarker(selected)
+    const map = mapRef.current
+    if (map) {
+      map.setView([selected.lat, selected.lng], 17, { animate: true })
+    }
+  }, [markers, searchParams])
 
   useEffect(() => {
     if (status !== 'authenticated' || guestMode || !leafletLoaded || !mapRef.current || !session?.user) return
@@ -265,6 +319,32 @@ export default function MapsPage() {
     })
   }, [])
 
+  // Build tile URL for the current view mode
+  const getTileUrl = useCallback((mode: 'street' | 'satellite') => {
+    return mode === 'satellite' ? SATELLITE_TILE_URL : STREET_TILE_URL
+  }, [])
+
+  const getTileAttribution = useCallback((mode: 'street' | 'satellite') => {
+    return mode === 'satellite' ? SATELLITE_ATTRIBUTION : STREET_ATTRIBUTION
+  }, [])
+
+  // Create a tile layer with proper high-zoom settings for Mapbox 512@2x tiles
+  const createTileLayer = useCallback((mode: 'street' | 'satellite', L: typeof import('leaflet')) => {
+    const isMapbox = MAPBOX_TOKEN.length > 0
+
+    return L.tileLayer(getTileUrl(mode), {
+      attribution: getTileAttribution(mode),
+      maxNativeZoom: MAX_NATIVE_ZOOM,
+      maxZoom: MAX_MAP_ZOOM,
+      tileSize: isMapbox ? 512 : 256,
+      zoomOffset: isMapbox ? -1 : 0,   // Mapbox 512@2x tiles need -1 offset for correct zoom level correspondence
+      zoomReverse: false,
+      updateWhenZooming: true,
+      updateWhenIdle: true,
+      keepBuffer: 16,
+    })
+  }, [getTileUrl, getTileAttribution])
+
   // Initialize map
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || mapRef.current) return
@@ -273,26 +353,31 @@ export default function MapsPage() {
 
     const map = L.map(mapContainerRef.current, {
       center: [19.0, 74.5], // Gatewadi, Maharashtra
-      zoom: 14,
+      zoom: 16,
       zoomControl: false,
-      maxZoom: 22,
+      minZoom: MIN_MAP_ZOOM,
+      maxZoom: MAX_MAP_ZOOM,
+      // ── Precision zoom settings ──
+      // zoomSnap: fractional zoom steps for smooth transitions
+      // At the max, user can quarter-step between levels for fine-grained control
+      zoomSnap: 0.25,
+      zoomDelta: 0.25,
+      wheelPxPerZoomLevel: 60,      // slower zoom = more precise control per scroll tick
+      wheelDebounceTime: 30,
+      scrollWheelZoom: true,
+      touchZoom: true,
+      doubleClickZoom: true,
+      boxZoom: true,
       attributionControl: false,
+      preferCanvas: true,
+      inertia: true,
+      inertiaDeceleration: 3000,
+      inertiaMaxSpeed: 1500,
     })
 
     L.control.zoom({ position: 'bottomright' }).addTo(map)
 
-    const initialLayer = L.tileLayer(
-      viewMode === 'satellite'
-        ? FACIL_MAP_SATELLITE_URL
-        : FACIL_MAP_STREET_URL,
-      {
-        attribution: viewMode === 'satellite'
-          ? FACIL_MAP_SATELLITE_ATTRIBUTION
-          : FACIL_MAP_STREET_ATTRIBUTION,
-        maxNativeZoom: 19,
-        maxZoom: 22,
-      }
-    ).addTo(map)
+    const initialLayer = createTileLayer(viewMode, L).addTo(map)
     tileLayerRef.current = initialLayer
 
     const layerGroup = L.layerGroup().addTo(map)
@@ -327,7 +412,7 @@ export default function MapsPage() {
       map.remove()
       mapRef.current = null
     }
-  }, [leafletLoaded])
+  }, [leafletLoaded, viewMode, createTileLayer])
 
   const myMarkerCount = session?.user?.id ? markers.filter((m) => m.userId === session.user.id).length : 0
   const canAddMarkers = status === 'authenticated' && !guestMode
@@ -351,25 +436,34 @@ export default function MapsPage() {
       const firstName = fullName.split(' ')[0] || 'Contributor'
       const label = m.label || 'Unnamed Sapling'
       const coords = `${m.lat.toFixed(6)}, ${m.lng.toFixed(6)}`
-      // Include a small thumbnail if available
-      const topBlock = m.imageUrl
-        ? `<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:14px;">
-             <div>
-               <div style="font-size:18px;font-weight:800;color:#064E3B;line-height:1.1;">${label}</div>
-               <div style="font-size:11px;color:#16A34A;letter-spacing:0.12em;margin-top:4px;text-transform:uppercase;">Sampling name</div>
-             </div>
-             <div style="width:48px;height:48px;border-radius:20px;overflow:hidden;border:1px solid rgba(16,185,129,0.22);box-shadow:0 10px 20px rgba(15,23,42,0.1);">
-               <img src="${m.imageUrl}" alt="sapling" style="width:100%;height:100%;object-fit:cover;display:block;" />
-             </div>
+      const latest = m.latestEntry
+      const latestBlock = latest
+        ? `<div style="margin-bottom:14px;">
+             <div style="font-size:15px;font-weight:700;color:#064E3B;line-height:1.2;">Latest update</div>
+             <div style="font-size:13px;color:#0F766E;margin-top:6px;font-weight:700;">${latest.title}</div>
+             <div style="font-size:11px;color:#0F5132;margin-top:8px;max-height:4.4em;overflow:hidden;text-overflow:ellipsis;">${latest.description}</div>
+             <div style="font-size:11px;color:#047857;margin-top:10px;">${new Date(latest.date).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</div>
            </div>`
         : `<div style="margin-bottom:14px;">
-             <div style="font-size:18px;font-weight:800;color:#064E3B;line-height:1.1;">${label}</div>
-             <div style="font-size:11px;color:#16A34A;letter-spacing:0.12em;margin-top:4px;text-transform:uppercase;">Sampling name</div>
+             <div style="font-size:15px;font-weight:700;color:#064E3B;line-height:1.2;">No timeline updates yet</div>
+             <div style="font-size:12px;color:#0F766E;margin-top:6px;">Add the first update to capture progress.</div>
            </div>`
 
+      const timelineActions = `
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;">
+          <a href="/maps/${m.id}" style="flex:1 1 auto;padding:10px 14px;border-radius:999px;border:1px solid rgba(15,119,110,0.18);background:rgba(255,255,255,0.96);color:#07564C;text-decoration:none;font-size:12px;font-weight:700;">View entire timeline</a>
+          ${session?.user?.id === m.userId && !guestMode ? `<a href="/maps/${m.id}/add" style="flex:1 1 auto;padding:10px 14px;border-radius:999px;background:#16A34A;color:#fff;text-decoration:none;font-size:12px;font-weight:700;">+ Add update</a>` : ''}
+        </div>
+      `
+
       const popupContent = `
-        <div style="font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif; min-width:280px; background: rgba(236, 253, 245, 0.96); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 22px; padding: 18px; box-shadow: 0 26px 54px rgba(15, 50, 26, 0.18); color: #134E4A;">
-          ${topBlock}
+        <div style="font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif; min-width:300px; background: rgba(236, 253, 245, 0.96); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 22px; padding: 18px; box-shadow: 0 26px 54px rgba(15, 50, 26, 0.18); color: #134E4A;">
+          <div style="margin-bottom:14px;">
+            <div style="font-size:18px;font-weight:800;color:#064E3B;line-height:1.1;">${label}</div>
+            <div style="font-size:11px;color:#16A34A;letter-spacing:0.12em;margin-top:4px;text-transform:uppercase;">Sapling overview</div>
+          </div>
+          <div style="height:1px; background: rgba(16, 185, 129, 0.16); margin: 0 0 14px; border-radius: 999px;"></div>
+          ${latestBlock}
           <div style="padding:14px 0; border-top:1px solid rgba(16, 185, 129, 0.18); border-bottom:1px solid rgba(16, 185, 129, 0.18); margin:12px 0;">
             <div style="font-size:11px; color:#047857; margin-bottom:6px;">Planted by:</div>
             <div style="font-size:14px; font-weight:700; color:#0F5132;">${firstName}</div>
@@ -378,6 +472,7 @@ export default function MapsPage() {
             <div style="font-weight:700; color:#0F5132; margin-bottom:4px;">Coordinates</div>
             <div>${coords}</div>
           </div>
+          ${timelineActions}
         </div>
       `
 
@@ -386,35 +481,44 @@ export default function MapsPage() {
         closeButton: false,
         className: 'leaflet-popup-custom',
       })
+
+      // Always open popup on hover
       marker.on('mouseover', () => marker.openPopup())
-      marker.on('mouseout', () => marker.closePopup())
-      marker.on('click', () => setSelectedMarker(m))
+
+      // Only close popup on mouseout if this marker is not currently selected
+      marker.on('mouseout', () => {
+        if (!selectedMarker || selectedMarker.id !== m.id) {
+          marker.closePopup()
+        }
+      })
+
+      // Clicking selects the marker and keeps its popup open
+      marker.on('click', () => {
+        setSelectedMarker(m)
+        marker.openPopup()
+      })
+
+      // If this marker is the currently selected one, ensure its popup is open
+      if (selectedMarker && selectedMarker.id === m.id) {
+        marker.openPopup()
+      }
       layer.addLayer(marker)
     })
-  }, [markers])
+  }, [markers, selectedMarker])
 
   // Switch tile layer when view mode changes
   useEffect(() => {
     const map = mapRef.current
+    if (!map || !tileLayerRef.current) return
+
+    // Re-create tile with the new view mode
     const L = leafletRef.current
-    if (!map || !tileLayerRef.current || !L) return
-
-    const newUrl = viewMode === 'satellite'
-      ? FACIL_MAP_SATELLITE_URL
-      : FACIL_MAP_STREET_URL
-
-    const newAttribution = viewMode === 'satellite'
-      ? FACIL_MAP_SATELLITE_ATTRIBUTION
-      : FACIL_MAP_STREET_ATTRIBUTION
+    if (!L) return
 
     map.removeLayer(tileLayerRef.current)
-    const newLayer = L.tileLayer(newUrl, {
-      attribution: newAttribution,
-      maxNativeZoom: 19,
-      maxZoom: 22,
-    }).addTo(map)
+    const newLayer = createTileLayer(viewMode, L).addTo(map)
     tileLayerRef.current = newLayer
-  }, [viewMode])
+  }, [viewMode, createTileLayer])
 
   // Handle map click to place marker
   const handleMapClick = useCallback((e: LeafletMouseEvent) => {
@@ -442,6 +546,11 @@ export default function MapsPage() {
       setSamplingError('Sampling name is required.')
       return
     }
+
+    setIsSavingMarker(true)
+    setSamplingError('')
+    setPendingMarker(null)
+    setPlacing(false)
 
     try {
       console.log('creating marker request with image', {
@@ -487,8 +596,6 @@ export default function MapsPage() {
         // Use server-provided imageUrl, or fall back to local preview so thumbnail appears immediately
         const added = { ...(data.marker || {}), imageUrl: data.marker?.imageUrl || samplingPreview || null }
         setMarkers((prev) => [added, ...prev])
-        setPendingMarker(null)
-        setPlacing(false)
         setSamplingName('')
         setSamplingImage(null)
         setSamplingPreview(null)
@@ -499,12 +606,18 @@ export default function MapsPage() {
         const msg = err.error || 'Failed to save marker.'
         setSamplingError(msg)
         showConfettiMessage(msg, 'error')
+        setPendingMarker(pendingMarker)
+        setPlacing(true)
       }
     } catch (err) {
       console.error('Failed to save marker', err)
       const msg = err instanceof Error ? err.message : 'Failed to save marker. Please try again.'
       setSamplingError(msg)
       showConfettiMessage(msg, 'error')
+      setPendingMarker(pendingMarker)
+      setPlacing(true)
+    } finally {
+      setIsSavingMarker(false)
     }
   }, [pendingMarker, samplingName, samplingImage, samplingPreview, canAddMarkers, showConfettiMessage])
 
@@ -535,6 +648,19 @@ export default function MapsPage() {
       map.getContainer().style.cursor = ''
     }
   }, [placing, handleMapClick])
+
+  // Deselect selected marker when clicking on map background (not placing)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const onMapClick = () => {
+      if (!placing) setSelectedMarker(null)
+    }
+
+    map.on('click', onMapClick)
+    return () => { map.off('click', onMapClick) }
+  }, [placing])
 
   const handleLogout = useCallback(() => {
     clearGuestModeCookie()
@@ -729,9 +855,10 @@ export default function MapsPage() {
                   </button>
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center rounded-[24px] bg-leaf px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_50px_rgba(22,101,52,0.3)] transition hover:bg-emerald-500 sm:w-auto"
+                    disabled={isSavingMarker}
+                    className={`inline-flex w-full items-center justify-center rounded-[24px] bg-leaf px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_50px_rgba(22,101,52,0.3)] transition hover:bg-emerald-500 sm:w-auto ${isSavingMarker ? 'cursor-not-allowed opacity-70' : ''}`}
                   >
-                    Save marker
+                    {isSavingMarker ? 'Saving...' : 'Save marker'}
                   </button>
                 </div>
               </form>
@@ -744,30 +871,7 @@ export default function MapsPage() {
             <span className="text-white/80 text-xs font-medium">{myMarkerCount} trees marked</span>
           </div>
 
-          {/* Selected marker popup */}
-          {selectedMarker && (
-            <div className="absolute bottom-4 right-20 z-1000 bg-emerald-50/95 backdrop-blur-md rounded-xl px-4 py-3 border border-emerald-200/70 shadow-xl min-w-50">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  {selectedMarker.imageUrl && (
-                    <img src={selectedMarker.imageUrl} alt="thumb" className="w-10 h-10 object-cover rounded-md" />
-                  )}
-                  <div>
-                    <p className="text-slate-900 text-sm font-medium flex items-center gap-1.5">
-                      <IconLeaf size={14} className="text-emerald-600" />
-                      {selectedMarker.label || 'Unnamed Sapling'}
-                    </p>
-                    <p className="text-slate-600 text-xs mt-0.5">
-                      Planted by {selectedMarker.user?.fullName || 'Unknown'}
-                    </p>
-                    <p className="text-slate-500 text-[10px] mt-1">
-                      {selectedMarker.lat.toFixed(5)}, {selectedMarker.lng.toFixed(5)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Selected marker popup removed — Leaflet popups are used instead */}
         </div>
       </section>
     </>
