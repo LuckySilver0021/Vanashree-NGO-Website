@@ -10,6 +10,11 @@ function normalizeEmail(value: string) {
 }
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
+  pages: {
+    signIn: '/auth',
+    error: '/auth',
+  },
   providers: [
     CredentialsProvider({
       id: 'credentials',
@@ -83,9 +88,4 @@ export const authOptions: NextAuthOptions = {
       return token
     },
   },
-  pages: {
-    signIn: '/auth',
-    error: '/auth',
-  },
-  secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
 }
