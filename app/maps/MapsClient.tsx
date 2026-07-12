@@ -225,7 +225,7 @@ export default function MapsPage() {
               weight: 2,
             }).addTo(map)
             userLocationMarkerRef.current = marker
-            marker.bindPopup('Saved location').openPopup()
+            marker.bindPopup('Your location').openPopup()
           }
           setLocationPrompted(true)
           return
