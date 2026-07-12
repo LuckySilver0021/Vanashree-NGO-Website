@@ -49,9 +49,9 @@ export default async function HomePage() {
           quality={85}
         />
         {/* Cinematic overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-forest/40 to-forest/80" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/60 via-forest/40 to-forest/80" />
         {/* Warm glow accent */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[300px] rounded-full bg-gold/8 blur-3xl" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-225 h-75 rounded-full bg-gold/8 blur-3xl" />
 
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-24 pb-16">
           <FadeIn>
@@ -96,7 +96,7 @@ export default async function HomePage() {
           <FadeIn delay={0.7}>
             <div className="mt-20 flex flex-col items-center gap-2 text-white/30">
               <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>
-              <div className="w-px h-8 bg-gradient-to-b from-white/30 to-transparent" />
+              <div className="w-px h-8 bg-linear-to-b from-white/30 to-transparent" />
             </div>
           </FadeIn>
         </div>
@@ -145,7 +145,7 @@ export default async function HomePage() {
             <FadeIn direction="right">
               <div className="relative">
                 {/* Main image */}
-                <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl shadow-forest/10">
+                <div className="aspect-4/3 rounded-2xl overflow-hidden shadow-2xl shadow-forest/10">
                   <Image
                     src={galleryImages[15].src}
                     alt={galleryImages[15].alt}
@@ -159,7 +159,7 @@ export default async function HomePage() {
                 <div className="absolute -bottom-6 -left-6 bg-white rounded-xl px-5 py-4 shadow-xl shadow-forest/8 border border-gold/15">
                   <p className="text-3xl font-bold text-forest">{page.aboutServiceYears}</p>
                   <p className="text-xs text-pebble mt-0.5">Years of impact</p>
-                  <div className="mt-2 h-0.5 w-8 bg-gradient-to-r from-gold to-amber rounded" />
+                  <div className="mt-2 h-0.5 w-8 bg-linear-to-r from-gold to-amber rounded" />
                 </div>
                 {/* Decorative accent corners */}
                 <div className="absolute -top-3 -right-3 w-12 h-12 border-t-2 border-r-2 border-gold/30 rounded-tr-xl" />
@@ -178,7 +178,7 @@ export default async function HomePage() {
       {/* ━━━ Programs ━━━ */}
       <section className="relative py-24 md:py-36 bg-cream overflow-hidden">
         {/* Organic shape */}
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
+        <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-gold/20 to-transparent" />
         <div className="max-w-6xl mx-auto px-4 md:px-6">
           <SectionReveal
             eyebrow="What We Do"
@@ -193,9 +193,9 @@ export default async function HomePage() {
                   <div className="relative bg-white rounded-2xl p-7 shadow-sm hover:shadow-xl border border-moss/15 transition-all duration-500 group-hover:-translate-y-2 h-full flex flex-col overflow-hidden">
                     {/* Colored top accent bar */}
                     <div className={`absolute top-0 left-0 right-0 h-1 ${
-                      idx === 0 ? 'bg-gradient-to-r from-leaf to-fern' :
-                      idx === 1 ? 'bg-gradient-to-r from-gold to-amber' :
-                      'bg-gradient-to-r from-terracotta to-gold'
+                      idx === 0 ? 'bg-linear-to-r from-leaf to-fern' :
+                      idx === 1 ? 'bg-linear-to-r from-gold to-amber' :
+                      'bg-linear-to-r from-terracotta to-gold'
                     }`} />
                     <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-5 transition-colors duration-300 ${
                       idx === 0 ? 'bg-leaf/10 group-hover:bg-leaf/15' :
@@ -278,7 +278,7 @@ export default async function HomePage() {
                     idx === 0 ? 'col-span-2 row-span-2' : ''
                   }`}
                 >
-                  <div className={`${idx === 0 ? 'aspect-square' : 'aspect-[4/3]'} relative`}>
+                  <div className={`${idx === 0 ? 'aspect-square' : 'aspect-4/3'} relative`}>
                     <Image
                       src={img.src}
                       alt={img.alt}
