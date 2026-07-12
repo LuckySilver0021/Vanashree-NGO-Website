@@ -6,7 +6,7 @@ export default function NotFound() {
   return (
     <section className="min-h-screen flex items-center justify-center bg-cream pt-16">
       <div className="max-w-md mx-auto px-4 text-center">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-leaf/10 to-fern/10 flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-leaf/10 to-fern/10 flex items-center justify-center mx-auto mb-6">
           <IconTree size={36} className="text-leaf/40" />
         </div>
         <h1 className="text-7xl font-bold text-forest mb-2">404</h1>
