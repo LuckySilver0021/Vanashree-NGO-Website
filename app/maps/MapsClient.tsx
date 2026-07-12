@@ -30,29 +30,24 @@ interface MarkerData {
 }
 
 /* ── Mapbox tile configuration ──────────────────────────────────────
- * A Mapbox access token enables tiles that are crisp at z20–z22.
- * If no token is set, the map gracefully falls back to OSM + ESRI.
+ * Mapbox only — no fallback providers.
  * Get a free token at https://account.mapbox.com/access-tokens/
  */
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() || ''
 
-/* Street tiles — Mapbox Outdoors v12 @2x (crisp at high zoom) when token present, otherwise OSM */
-const STREET_TILE_URL = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
-  : (process.env.NEXT_PUBLIC_FACILMAPS_STREET_TILE_URL?.trim() || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
+if (!MAPBOX_TOKEN) {
+  console.warn('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN not set. Maps will not render.')
+}
 
-const STREET_ATTRIBUTION = MAPBOX_TOKEN
-  ? '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-  : (process.env.NEXT_PUBLIC_FACILMAPS_STREET_ATTRIBUTION ?? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors')
+/* Street tiles — Mapbox Outdoors v12 @2x (crisp at high zoom) */
+const STREET_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
 
-/* Satellite tiles — Mapbox Satellite v9 @2x when token present, otherwise ESRI */
-const SATELLITE_TILE_URL = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
-  : (process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_TILE_URL?.trim() || 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+const STREET_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
 
-const SATELLITE_ATTRIBUTION = MAPBOX_TOKEN
-  ? '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
-  : (process.env.NEXT_PUBLIC_FACILMAPS_SATELLITE_ATTRIBUTION ?? '&copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community')
+/* Satellite tiles — Mapbox Satellite v9 @2x */
+const SATELLITE_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+
+const SATELLITE_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
 
 /* ── Zoom constants ────────────────────────────────
  * Mapbox 512@2x tiles are sharp up to z22.
@@ -330,14 +325,12 @@ export default function MapsPage() {
 
   // Create a tile layer with proper high-zoom settings for Mapbox 512@2x tiles
   const createTileLayer = useCallback((mode: 'street' | 'satellite', L: typeof import('leaflet')) => {
-    const isMapbox = MAPBOX_TOKEN.length > 0
-
     return L.tileLayer(getTileUrl(mode), {
       attribution: getTileAttribution(mode),
       maxNativeZoom: MAX_NATIVE_ZOOM,
       maxZoom: MAX_MAP_ZOOM,
-      tileSize: isMapbox ? 512 : 256,
-      zoomOffset: isMapbox ? -1 : 0,   // Mapbox 512@2x tiles need -1 offset for correct zoom level correspondence
+      tileSize: 512,
+      zoomOffset: -1,   // Mapbox 512@2x tiles need -1 offset for correct zoom level correspondence
       zoomReverse: false,
       updateWhenZooming: true,
       updateWhenIdle: true,
