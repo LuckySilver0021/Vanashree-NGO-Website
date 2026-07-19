@@ -82,8 +82,6 @@ export default function MapsPage() {
   const [samplingPreview, setSamplingPreview] = useState<string | null>(null)
   const [isSavingMarker, setIsSavingMarker] = useState(false)
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
-  const [savedLocation, setSavedLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [shouldPromptLocation, setShouldPromptLocation] = useState(false)
   const [locationPrompted, setLocationPrompted] = useState(false)
   const userLocationMarkerRef = useRef<CircleMarker | null>(null)
   const tileLayerRef = useRef<TileLayer | null>(null)
@@ -158,16 +156,20 @@ export default function MapsPage() {
 
   // Fetch existing markers
   useEffect(() => {
+    let cancelled = false
     fetch('/api/markers')
       .then((res) => res.json())
       .then((data) => {
-        if (data.markers) setMarkers(data.markers)
+        if (!cancelled && data.markers) setMarkers(data.markers)
       })
       .catch((err) => {
-        console.error('Failed to load markers', err)
-        showConfettiMessage('Failed to load map markers', 'error')
+        if (!cancelled) {
+          console.error('Failed to load markers', err)
+          showConfettiMessage('Failed to load map markers', 'error')
+        }
       })
-  }, [])
+    return () => { cancelled = true }
+  }, [viewMode])
 
   // If the login redirect added a `loggedIn` query param, just remove it from the address bar
   useEffect(() => {
@@ -191,56 +193,8 @@ export default function MapsPage() {
   }, [markers, searchParams])
 
   useEffect(() => {
-    if (status !== 'authenticated' || guestMode || !leafletLoaded || !mapRef.current || !session?.user) return
-
-    const userKey = session.user.id ?? session.user.email
-    if (!userKey) return
-
-    const storageKey = `vanashree-user-location:${userKey}`
-    const raw = localStorage.getItem(storageKey)
-
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw)
-        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
-          setSavedLocation(parsed)
-          const map = mapRef.current
-          map.setView([parsed.lat, parsed.lng], 15)
-
-          const L = leafletRef.current
-          if (L) {
-            if (userLocationMarkerRef.current) {
-              userLocationMarkerRef.current.remove()
-            }
-            const marker = L.circleMarker([parsed.lat, parsed.lng], {
-              radius: 8,
-              color: '#166534',
-              fillColor: '#BBF7D0',
-              fillOpacity: 0.9,
-              weight: 2,
-            }).addTo(map)
-            userLocationMarkerRef.current = marker
-            marker.bindPopup('Your location').openPopup()
-          }
-          setLocationPrompted(true)
-          return
-        }
-      } catch {
-        // ignore invalid saved value and prompt again
-      }
-    }
-
-    setShouldPromptLocation(true)
-  }, [status, leafletLoaded, session?.user, showConfettiMessage])
-
-  useEffect(() => {
-    if (!shouldPromptLocation || locationPrompted || status !== 'authenticated' || guestMode) return
+    if (locationPrompted || status !== 'authenticated' || guestMode) return
     if (!leafletLoaded || !mapRef.current || !session?.user) return
-
-    const userKey = session.user.id ?? session.user.email
-    if (!userKey) return
-
-    const storageKey = `vanashree-user-location:${userKey}`
 
     if (!navigator?.geolocation) {
       setLocationPrompted(true)
@@ -272,8 +226,6 @@ export default function MapsPage() {
             userLocationMarkerRef.current = marker
             marker.bindPopup('Your current location').openPopup()
           }
-          localStorage.setItem(storageKey, JSON.stringify({ lat, lng }))
-          setSavedLocation({ lat, lng })
           showConfettiMessage('Showing your current location on the map', 'success')
         }
 
@@ -284,9 +236,9 @@ export default function MapsPage() {
         showConfettiMessage('Location request denied. Showing default map view.', 'error')
         setLocationPrompted(true)
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
-  }, [shouldPromptLocation, locationPrompted, status, leafletLoaded, session?.user, showConfettiMessage])
+  }, [locationPrompted, status, leafletLoaded, session?.user, showConfettiMessage])
 
   // Load Leaflet on the client only
   useEffect(() => {
@@ -304,10 +256,10 @@ export default function MapsPage() {
 
       treeIconRef.current = new L.DivIcon({
         className: 'tree-marker',
-        html: '<img src="/images/map-tree-marker.svg" alt="Tree" style="width:32px;height:42px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" />',
-        iconSize: [32, 42],
-        iconAnchor: [16, 42],
-        popupAnchor: [0, -42],
+        html: '<img src="/images/sapling.png" alt="Tree" style="width:52px;height:66px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" />',
+        iconSize: [52, 66],
+        iconAnchor: [26, 66],
+        popupAnchor: [0, -66],
       })
 
       setLeafletLoaded(true)
@@ -443,26 +395,29 @@ export default function MapsPage() {
            </div>`
 
       const timelineActions = `
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;">
-          <a href="/maps/${m.id}" style="flex:1 1 auto;padding:10px 14px;border-radius:999px;border:1px solid rgba(15,119,110,0.18);background:rgba(255,255,255,0.96);color:#07564C;text-decoration:none;font-size:12px;font-weight:700;">View entire timeline</a>
-          ${session?.user?.id === m.userId && !guestMode ? `<a href="/maps/${m.id}/add" style="flex:1 1 auto;padding:10px 14px;border-radius:999px;background:#16A34A;color:#fff;text-decoration:none;font-size:12px;font-weight:700;">+ Add update</a>` : ''}
+        <div style="display:flex;gap:6px;margin-top:12px;">
+          <a href="/maps/${m.id}" style="flex:1;padding:8px 10px;border-radius:999px;border:1px solid rgba(15,119,110,0.18);background:rgba(255,255,255,0.96);color:#07564C;text-decoration:none;font-size:11px;font-weight:700;text-align:center;white-space:nowrap;">View timeline</a>
+          ${!guestMode ? `<a href="/maps/${m.id}/add" style="flex:1;padding:8px 10px;border-radius:999px;background:#16A34A;color:#fff;text-decoration:none;font-size:11px;font-weight:700;text-align:center;white-space:nowrap;">+ Add update</a>` : ''}
         </div>
       `
 
       const popupContent = `
-        <div style="font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif; min-width:300px; background: rgba(236, 253, 245, 0.96); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 22px; padding: 18px; box-shadow: 0 26px 54px rgba(15, 50, 26, 0.18); color: #134E4A;">
-          <div style="margin-bottom:14px;">
-            <div style="font-size:18px;font-weight:800;color:#064E3B;line-height:1.1;">${label}</div>
-            <div style="font-size:11px;color:#16A34A;letter-spacing:0.12em;margin-top:4px;text-transform:uppercase;">Sapling overview</div>
+        <div style="font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;min-width:260px;background:rgba(236,253,245,0.96);border:1px solid rgba(16,185,129,0.2);border-radius:18px;padding:14px;box-shadow:0 26px 54px rgba(15,50,26,0.18);color:#134E4A;">
+          <div style="margin-bottom:10px;">
+            <div style="font-size:15px;font-weight:800;color:#064E3B;line-height:1.1;">${label}</div>
+            <div style="font-size:10px;color:#16A34A;letter-spacing:0.12em;margin-top:3px;text-transform:uppercase;">Sapling overview</div>
           </div>
-          <div style="height:1px; background: rgba(16, 185, 129, 0.16); margin: 0 0 14px; border-radius: 999px;"></div>
+          <div style="height:1px;background:rgba(16,185,129,0.16);margin:0 0 10px;border-radius:999px;"></div>
           ${latestBlock}
-          <div style="padding:14px 0; border-top:1px solid rgba(16, 185, 129, 0.18); border-bottom:1px solid rgba(16, 185, 129, 0.18); margin:12px 0;">
-            <div style="font-size:11px; color:#047857; margin-bottom:6px;">Planted by:</div>
-            <div style="font-size:14px; font-weight:700; color:#0F5132;">${firstName}</div>
+          <div style="padding:8px 0;border-top:1px solid rgba(16,185,129,0.18);border-bottom:1px solid rgba(16,185,129,0.18);margin:8px 0;">
+            <div style="font-size:10px;color:#047857;margin-bottom:3px;">Planted by:</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="font-size:12px;font-weight:700;color:#0F5132;line-height:1.2;">${firstName}</div>
+              ${m.imageUrl ? `<img src="${m.imageUrl}" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;margin-left:auto;" />` : ''}
+            </div>
           </div>
-          <div style="font-size:11px; color:#164E63; line-height:1.6;">
-            <div style="font-weight:700; color:#0F5132; margin-bottom:4px;">Coordinates</div>
+          <div style="font-size:10px;color:#164E63;line-height:1.5;">
+            <div style="font-weight:700;color:#0F5132;margin-bottom:2px;">Coordinates</div>
             <div>${coords}</div>
           </div>
           ${timelineActions}
@@ -497,21 +452,15 @@ export default function MapsPage() {
       }
       layer.addLayer(marker)
     })
-  }, [markers, selectedMarker])
+  }, [markers, selectedMarker, viewMode])
 
   // Switch tile layer when view mode changes
   useEffect(() => {
-    const map = mapRef.current
-    if (!map || !tileLayerRef.current) return
+    const layer = tileLayerRef.current
+    if (!layer) return
 
-    // Re-create tile with the new view mode
-    const L = leafletRef.current
-    if (!L) return
-
-    map.removeLayer(tileLayerRef.current)
-    const newLayer = createTileLayer(viewMode, L).addTo(map)
-    tileLayerRef.current = newLayer
-  }, [viewMode, createTileLayer])
+    layer.setUrl(viewMode === 'satellite' ? SATELLITE_TILE_URL : STREET_TILE_URL)
+  }, [viewMode])
 
   // Handle map click to place marker
   const handleMapClick = useCallback((e: LeafletMouseEvent) => {
@@ -659,22 +608,6 @@ export default function MapsPage() {
     clearGuestModeCookie()
     signOut({ callbackUrl: '/' })
   }, [])
-
-  // Don't render anything if auth check hasn't completed
-  if (status === 'loading' || (status === 'unauthenticated' && showConfetti)) {
-    return (
-      <section className="h-dvh flex items-center justify-center bg-forest">
-        {showConfetti && (
-          <ConfettiOverlay
-            message={confettiMessage}
-            type={confettiType}
-            duration={2500}
-            onComplete={handleConfettiComplete}
-          />
-        )}
-      </section>
-    )
-  }
 
   return (
     <>
