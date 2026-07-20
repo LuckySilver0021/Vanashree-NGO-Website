@@ -13,6 +13,7 @@ export default function AddTimelineEntryPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [status, setStatus] = useState('')
   const [image, setImage] = useState<File | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +63,9 @@ export default function AddTimelineEntryPage() {
       formData.append('title', title.trim())
       formData.append('description', description.trim())
       formData.append('date', date)
+      if (status) {
+        formData.append('status', status)
+      }
       if (image) {
         formData.append('image', image)
       }
@@ -128,7 +132,7 @@ export default function AddTimelineEntryPage() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-2 block text-sm font-semibold text-forest">Date</label>
               <input
@@ -140,10 +144,24 @@ export default function AddTimelineEntryPage() {
             </div>
 
             <div>
+              <label className="mb-2 block text-sm font-semibold text-forest">Status (optional)</label>
+              <select
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                className="w-full rounded-[20px] border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-forest outline-none transition focus:border-leaf focus:ring-2 focus:ring-leaf/20"
+              >
+                <option value="">Select status</option>
+                <option value="Needs Water">Needs Water</option>
+                <option value="Healthy">Healthy</option>
+                <option value="Overwatered">Overwatered</option>
+              </select>
+            </div>
+
+            <div>
               <label className="mb-2 block text-sm font-semibold text-forest">Image (optional)</label>
               <label className="flex cursor-pointer items-center justify-between rounded-[20px] border border-dashed border-stone-300 bg-white px-4 py-3 text-sm text-stone transition hover:border-leaf/50">
-                <span>{image ? image.name : 'Upload image from device'}</span>
-                <IconPhoto size={18} className="text-forest" />
+                <span className="truncate">{image ? image.name : 'Upload image'}</span>
+                <IconPhoto size={18} className="text-forest shrink-0" />
                 <input
                   type="file"
                   accept="image/*"

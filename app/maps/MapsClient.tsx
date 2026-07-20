@@ -14,6 +14,7 @@ interface TimelineEntry {
   title: string
   description: string
   imageUrl?: string | null
+  status?: string | null
   date: string
   createdAt: string
 }
@@ -302,12 +303,8 @@ export default function MapsPage() {
       zoomControl: false,
       minZoom: MIN_MAP_ZOOM,
       maxZoom: MAX_MAP_ZOOM,
-      // ── Precision zoom settings ──
-      // zoomSnap: fractional zoom steps for smooth transitions
-      // At the max, user can quarter-step between levels for fine-grained control
-      zoomSnap: 0.25,
-      zoomDelta: 0.25,
-      wheelPxPerZoomLevel: 60,      // slower zoom = more precise control per scroll tick
+      zoomSnap: 1,
+      zoomDelta: 1,
       wheelDebounceTime: 30,
       scrollWheelZoom: true,
       touchZoom: true,
@@ -376,18 +373,44 @@ export default function MapsPage() {
     if (!L || !treeIcon) return
 
     markers.forEach((m) => {
-      const marker = L.marker([m.lat, m.lng], { icon: treeIcon })
+      const needsWater = m.latestEntry?.status === 'Needs Water'
+      const icon = needsWater
+        ? L.divIcon({
+            className: 'tree-marker',
+            html: '<div style="position:relative;width:52px;height:66px;"><style>@keyframes nwd{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.3)}}.nwd-dot{position:absolute;top:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#DC2626;animation:nwd 1s ease-in-out infinite;box-shadow:0 0 8px rgba(220,38,38,0.8)}</style><img src="/images/sapling.png" alt="Tree" style="width:52px;height:66px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" /><span class="nwd-dot"></span></div>',
+            iconSize: [52, 66],
+            iconAnchor: [26, 66],
+            popupAnchor: [0, -66],
+          })
+        : treeIcon
+      const marker = L.marker([m.lat, m.lng], { icon })
       const fullName = m.user?.fullName?.trim() || 'Unknown Contributor'
       const firstName = fullName.split(' ')[0] || 'Contributor'
       const label = m.label || 'Unnamed Sapling'
       const coords = `${m.lat.toFixed(6)}, ${m.lng.toFixed(6)}`
+      const statusColors: Record<string, string> = {
+        'Needs Water': '#DC2626',
+        'Healthy': '#16A34A',
+        'Overwatered': '#D97706',
+      }
+      const statusBgColors: Record<string, string> = {
+        'Needs Water': '#FEE2E2',
+        'Healthy': '#DCFCE7',
+        'Overwatered': '#FEF3C7',
+      }
       const latest = m.latestEntry
+      const statusBadge = latest?.status
+        ? latest.status === 'Needs Water'
+          ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;color:#DC2626;background:#FEE2E2;"><style>@keyframes pd{0%,100%{opacity:1}50%{opacity:.2}}.pd{display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626;animation:pd 1s ease-in-out infinite;flex-shrink:0}</style><span class="pd"></span>Needs Water</span>`
+          : `<span style="display:inline-block;margin-top:8px;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;color:${statusColors[latest.status] || '#6B7280'};background:${statusBgColors[latest.status] || '#F3F4F6'};">${latest.status}</span>`
+        : ''
       const latestBlock = latest
         ? `<div style="margin-bottom:14px;">
              <div style="font-size:15px;font-weight:700;color:#064E3B;line-height:1.2;">Latest update</div>
              <div style="font-size:13px;color:#0F766E;margin-top:6px;font-weight:700;">${latest.title}</div>
              <div style="font-size:11px;color:#0F5132;margin-top:8px;max-height:4.4em;overflow:hidden;text-overflow:ellipsis;">${latest.description}</div>
              <div style="font-size:11px;color:#047857;margin-top:10px;">${new Date(latest.date).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</div>
+             ${statusBadge}
            </div>`
         : `<div style="margin-bottom:14px;">
              <div style="font-size:15px;font-weight:700;color:#064E3B;line-height:1.2;">No timeline updates yet</div>
@@ -445,6 +468,8 @@ export default function MapsPage() {
         setSelectedMarker(m)
         marker.openPopup()
       })
+
+
 
       // If this marker is the currently selected one, ensure its popup is open
       if (selectedMarker && selectedMarker.id === m.id) {

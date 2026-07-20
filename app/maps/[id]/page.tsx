@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react'
+import { PulseDot } from '@/components/motion/PulseDot'
 
 export const metadata: Metadata = {
   title: 'Sapling Timeline',
@@ -121,7 +122,23 @@ export default async function TimelinePage({ params }: TimelinePageProps) {
                     </h2>
                   </div>
 
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex items-center gap-2">
+                    {entry.status && (
+                      entry.status === 'Needs Water' ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                          <PulseDot />
+                          Needs Water
+                        </span>
+                      ) : (
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+                          entry.status === 'Healthy' ? 'bg-green-50 text-green-700' :
+                          entry.status === 'Overwatered' ? 'bg-amber-50 text-amber-700' :
+                          'bg-neutral-100 text-neutral-600'
+                        }`}>
+                          {entry.status}
+                        </span>
+                      )
+                    )}
                     <span className="inline-flex rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-600">
                       {formatTimelineDate(entry.date)}
                     </span>
