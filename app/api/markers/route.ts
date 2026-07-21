@@ -26,6 +26,7 @@ export async function GET() {
             title: true,
             description: true,
             imageUrl: true,
+            status: true,
             date: true,
             createdAt: true,
           },

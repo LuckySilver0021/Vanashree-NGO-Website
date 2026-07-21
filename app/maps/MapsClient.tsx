@@ -14,6 +14,7 @@ interface TimelineEntry {
   title: string
   description: string
   imageUrl?: string | null
+  status?: string | null
   date: string
   createdAt: string
 }
@@ -82,7 +83,6 @@ export default function MapsPage() {
   const [samplingPreview, setSamplingPreview] = useState<string | null>(null)
   const [isSavingMarker, setIsSavingMarker] = useState(false)
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
-  const [locationPrompted, setLocationPrompted] = useState(false)
   const userLocationMarkerRef = useRef<CircleMarker | null>(null)
   const tileLayerRef = useRef<TileLayer | null>(null)
   const [checkedAuth, setCheckedAuth] = useState(false)
@@ -192,53 +192,42 @@ export default function MapsPage() {
     }
   }, [markers, searchParams])
 
+  // Handle lat/lng from URL (set by LocationPopup on auth page)
   useEffect(() => {
-    if (locationPrompted || status !== 'authenticated' || guestMode) return
-    if (!leafletLoaded || !mapRef.current || !session?.user) return
+    const latParam = searchParams.get('lat')
+    const lngParam = searchParams.get('lng')
+    if (!latParam || !lngParam || !leafletLoaded || !mapRef.current) return
 
-    if (!navigator?.geolocation) {
-      setLocationPrompted(true)
-      showConfettiMessage('Geolocation is not available in this browser', 'error')
-      return
+    const lat = Number.parseFloat(latParam)
+    const lng = Number.parseFloat(lngParam)
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return
+
+    const map = mapRef.current
+    map.setView([lat, lng], 15)
+
+    const L = leafletRef.current
+    if (L) {
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.remove()
+      }
+      const marker = L.circleMarker([lat, lng], {
+        radius: 12,
+        color: '#166534',
+        fillColor: '#BBF7D0',
+        fillOpacity: 0.9,
+        weight: 3,
+      }).addTo(map)
+      userLocationMarkerRef.current = marker
+      marker.bindPopup('Your location').openPopup()
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude
-        const lng = position.coords.longitude
-        const map = mapRef.current
-
-        if (map) {
-          map.setView([lat, lng], 15)
-          const L = leafletRef.current
-
-          if (L) {
-            if (userLocationMarkerRef.current) {
-              userLocationMarkerRef.current.remove()
-            }
-            const marker = L.circleMarker([lat, lng], {
-              radius: 8,
-              color: '#166534',
-              fillColor: '#BBF7D0',
-              fillOpacity: 0.9,
-              weight: 2,
-            }).addTo(map)
-            userLocationMarkerRef.current = marker
-            marker.bindPopup('Your current location').openPopup()
-          }
-          showConfettiMessage('Showing your current location on the map', 'success')
-        }
-
-        setLocationPrompted(true)
-      },
-      (error) => {
-        console.warn('Geolocation permission denied or unavailable', error)
-        showConfettiMessage('Location request denied. Showing default map view.', 'error')
-        setLocationPrompted(true)
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    )
-  }, [locationPrompted, status, leafletLoaded, session?.user, showConfettiMessage])
+    // Remove params from URL so refresh doesn't re-trigger
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('lat')
+    params.delete('lng')
+    const newUrl = params.toString() ? `/maps?${params}` : '/maps'
+    router.replace(newUrl, { scroll: false })
+  }, [searchParams, leafletLoaded, router])
 
   // Load Leaflet on the client only
   useEffect(() => {
@@ -256,10 +245,10 @@ export default function MapsPage() {
 
       treeIconRef.current = new L.DivIcon({
         className: 'tree-marker',
-        html: '<img src="/images/sapling.png" alt="Tree" style="width:52px;height:66px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" />',
-        iconSize: [52, 66],
-        iconAnchor: [26, 66],
-        popupAnchor: [0, -66],
+        html: '<div style="width:78px;height:99px;"><img src="/images/sapling.png" alt="Tree" style="width:78px;height:99px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" /></div>',
+        iconSize: [78, 99],
+        iconAnchor: [39, 99],
+        popupAnchor: [0, -99],
       })
 
       setLeafletLoaded(true)
@@ -302,12 +291,8 @@ export default function MapsPage() {
       zoomControl: false,
       minZoom: MIN_MAP_ZOOM,
       maxZoom: MAX_MAP_ZOOM,
-      // ── Precision zoom settings ──
-      // zoomSnap: fractional zoom steps for smooth transitions
-      // At the max, user can quarter-step between levels for fine-grained control
-      zoomSnap: 0.25,
-      zoomDelta: 0.25,
-      wheelPxPerZoomLevel: 60,      // slower zoom = more precise control per scroll tick
+      zoomSnap: 1,
+      zoomDelta: 1,
       wheelDebounceTime: 30,
       scrollWheelZoom: true,
       touchZoom: true,
@@ -330,41 +315,44 @@ export default function MapsPage() {
 
     mapRef.current = map
 
-    // Detect user's approximate location using server-side analyzer (no device geolocation prompt)
-    const detectAndCenter = async () => {
-      try {
-        const res = await fetch('/api/geolocate')
-        if (!res.ok) throw new Error('Geolocation failed')
-        const data = await res.json()
-        const lat = data.latitude == null ? NaN : Number(data.latitude)
-        const lon = data.longitude == null ? NaN : Number(data.longitude)
-        const region = data.region || data.city || data.country || 'your area'
-        if (!Number.isNaN(lat) && !Number.isNaN(lon) && map) {
-          map.setView([lat, lon], 13)
-          if (window.showAppMessage) window.showAppMessage(`Centered to ${region}`, 'success', 1800)
-        } else {
+    
+    const hasPreciseLocation = searchParams.get('lat') && searchParams.get('lng')
+    if (!hasPreciseLocation) {
+      const detectAndCenter = async () => {
+        try {
+          const res = await fetch('/api/geolocate')
+          if (!res.ok) throw new Error('Geolocation failed')
+          const data = await res.json()
+          const lat = data.latitude == null ? NaN : Number(data.latitude)
+          const lon = data.longitude == null ? NaN : Number(data.longitude)
+          const region = data.region || data.city || data.country || 'your area'
+          if (!Number.isNaN(lat) && !Number.isNaN(lon) && map) {
+            map.setView([lat, lon], 13)
+            if (window.showAppMessage) window.showAppMessage(`Centered to ${region}`, 'success', 1800)
+          } else {
+            if (window.showAppMessage) window.showAppMessage('Could not determine approximate location', 'error', 2500)
+          }
+        } catch (err) {
+          console.warn('Geolocation API failed', err)
           if (window.showAppMessage) window.showAppMessage('Could not determine approximate location', 'error', 2500)
         }
-      } catch (err) {
-        console.warn('Geolocation API failed', err)
-        if (window.showAppMessage) window.showAppMessage('Could not determine approximate location', 'error', 2500)
       }
-    }
 
-    detectAndCenter()
+      detectAndCenter()
+    }
 
     return () => {
       map.remove()
       mapRef.current = null
     }
-  }, [leafletLoaded, viewMode, createTileLayer])
+  }, [leafletLoaded, viewMode, createTileLayer, searchParams])
 
   const myMarkerCount = session?.user?.id ? markers.filter((m) => m.userId === session.user.id).length : 0
   const canAddMarkers = status === 'authenticated' && !guestMode
   const headerTitle = guestMode ? 'Vanashree Facility Map' : 'Vanashree Plantation Map'
   const headerSubtitle = guestMode ? 'Viewing existing saplings in guest mode' : 'Click to mark where you planted'
 
-  // Render markers on map
+  
   useEffect(() => {
     const layer = markersLayerRef.current
     if (!layer) return
@@ -376,18 +364,44 @@ export default function MapsPage() {
     if (!L || !treeIcon) return
 
     markers.forEach((m) => {
-      const marker = L.marker([m.lat, m.lng], { icon: treeIcon })
+      const needsWater = m.latestEntry?.status === 'Needs Water'
+      const icon = needsWater
+        ? L.divIcon({
+            className: 'tree-marker',
+            html: '<div style="position:relative;width:78px;height:99px;"><style>@keyframes nwd{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.3)}}.nwd-dot{position:absolute;top:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:#DC2626;animation:nwd 1s ease-in-out infinite;box-shadow:0 0 8px rgba(220,38,38,0.8)}</style><img src="/images/sapling.png" alt="Tree" style="width:78px;height:99px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" /><span class="nwd-dot"></span></div>',
+            iconSize: [78, 99],
+            iconAnchor: [39, 99],
+            popupAnchor: [0, -99],
+          })
+        : treeIcon
+      const marker = L.marker([m.lat, m.lng], { icon })
       const fullName = m.user?.fullName?.trim() || 'Unknown Contributor'
       const firstName = fullName.split(' ')[0] || 'Contributor'
       const label = m.label || 'Unnamed Sapling'
       const coords = `${m.lat.toFixed(6)}, ${m.lng.toFixed(6)}`
+      const statusColors: Record<string, string> = {
+        'Needs Water': '#DC2626',
+        'Healthy': '#16A34A',
+        'Overwatered': '#D97706',
+      }
+      const statusBgColors: Record<string, string> = {
+        'Needs Water': '#FEE2E2',
+        'Healthy': '#DCFCE7',
+        'Overwatered': '#FEF3C7',
+      }
       const latest = m.latestEntry
+      const statusBadge = latest?.status
+        ? latest.status === 'Needs Water'
+          ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;color:#DC2626;background:#FEE2E2;"><style>@keyframes pd{0%,100%{opacity:1}50%{opacity:.2}}.pd{display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626;animation:pd 1s ease-in-out infinite;flex-shrink:0}</style><span class="pd"></span>Needs Water</span>`
+          : `<span style="display:inline-block;margin-top:8px;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;color:${statusColors[latest.status] || '#6B7280'};background:${statusBgColors[latest.status] || '#F3F4F6'};">${latest.status}</span>`
+        : ''
       const latestBlock = latest
         ? `<div style="margin-bottom:14px;">
              <div style="font-size:15px;font-weight:700;color:#064E3B;line-height:1.2;">Latest update</div>
              <div style="font-size:13px;color:#0F766E;margin-top:6px;font-weight:700;">${latest.title}</div>
              <div style="font-size:11px;color:#0F5132;margin-top:8px;max-height:4.4em;overflow:hidden;text-overflow:ellipsis;">${latest.description}</div>
              <div style="font-size:11px;color:#047857;margin-top:10px;">${new Date(latest.date).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</div>
+             ${statusBadge}
            </div>`
         : `<div style="margin-bottom:14px;">
              <div style="font-size:15px;font-weight:700;color:#064E3B;line-height:1.2;">No timeline updates yet</div>
@@ -430,21 +444,23 @@ export default function MapsPage() {
         className: 'leaflet-popup-custom',
       })
 
-      // Always open popup on hover
+      
       marker.on('mouseover', () => marker.openPopup())
 
-      // Only close popup on mouseout if this marker is not currently selected
+      
       marker.on('mouseout', () => {
         if (!selectedMarker || selectedMarker.id !== m.id) {
           marker.closePopup()
         }
       })
 
-      // Clicking selects the marker and keeps its popup open
+      
       marker.on('click', () => {
         setSelectedMarker(m)
         marker.openPopup()
       })
+
+
 
       // If this marker is the currently selected one, ensure its popup is open
       if (selectedMarker && selectedMarker.id === m.id) {
@@ -462,7 +478,7 @@ export default function MapsPage() {
     layer.setUrl(viewMode === 'satellite' ? SATELLITE_TILE_URL : STREET_TILE_URL)
   }, [viewMode])
 
-  // Handle map click to place marker
+  
   const handleMapClick = useCallback((e: LeafletMouseEvent) => {
     if (!placing || pendingMarker || !canAddMarkers) return
 
@@ -535,7 +551,7 @@ export default function MapsPage() {
 
       if (res.ok) {
         const data = await res.json()
-        // Use server-provided imageUrl, or fall back to local preview so thumbnail appears immediately
+        
         const added = { ...(data.marker || {}), imageUrl: data.marker?.imageUrl || samplingPreview || null }
         setMarkers((prev) => [added, ...prev])
         setSamplingName('')

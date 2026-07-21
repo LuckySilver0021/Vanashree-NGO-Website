@@ -34,6 +34,7 @@ export async function GET(request: Request) {
         title: true,
         description: true,
         imageUrl: true,
+        status: true,
         date: true,
         createdAt: true,
         createdBy: {
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
     const description = formData.get('description')
     const dateValue = formData.get('date')
     const image = formData.get('image') as File | null
+    const status = formData.get('status')
 
     if (!validateStringField(markerId, 1, 100) || typeof markerId !== 'string') {
       return NextResponse.json({ error: 'Invalid markerId' }, { status: 400 })
@@ -81,6 +83,9 @@ export async function POST(request: Request) {
     if (!validateStringField(description, 10, 2000)) {
       return NextResponse.json({ error: 'Description must be between 10 and 2000 characters' }, { status: 400 })
     }
+
+    const validStatuses = ['Needs Water', 'Healthy', 'Overwatered']
+    const parsedStatus = typeof status === 'string' && validStatuses.includes(status) ? status : null
 
     const parsedDate = typeof dateValue === 'string' && dateValue.trim() ? new Date(dateValue) : new Date()
     if (Number.isNaN(parsedDate.getTime())) {
@@ -122,6 +127,7 @@ export async function POST(request: Request) {
         title: String(title).trim(),
         description: String(description).trim(),
         imageUrl,
+        status: parsedStatus,
         date: parsedDate,
       },
     })
