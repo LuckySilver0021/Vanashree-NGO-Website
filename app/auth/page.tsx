@@ -17,6 +17,7 @@ import {
 import { toast, Toaster } from 'sonner'
 import { FadeIn } from '@/components/motion/FadeIn'
 import { clearGuestModeCookie, isValidEmail, isValidPhone, normalizeEmail, normalizePhone, sanitizeName, setGuestModeCookie } from '@/lib/auth'
+import { LocationPopup } from '@/components/auth/LocationPopup'
 
 type AuthMode = 'login' | 'signup'
 type EmailCheckState = 'idle' | 'checking' | 'available' | 'exists' | 'invalid' | 'temp-mail'
@@ -55,6 +56,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [showLocationPopup, setShowLocationPopup] = useState(false)
   const [loginData, setLoginData] = useState({ email: '', password: '' })
   const [signupData, setSignupData] = useState({
     fullName: '',
@@ -192,8 +194,8 @@ export default function AuthPage() {
       if (result?.error) {
         setError(result.error)
       } else if (result?.ok) {
-        setSuccessMessage('Login successful! Redirecting...')
-        setTimeout(() => router.replace('/maps?loggedIn=true'), 1500)
+        setSuccessMessage('Login successful!')
+        setTimeout(() => setShowLocationPopup(true), 800)
       }
     } catch {
       setError('An error occurred during login')
@@ -290,7 +292,7 @@ export default function AuthPage() {
         })
 
         if (loginResult?.ok) {
-          router.replace('/maps?loggedIn=true')
+          setShowLocationPopup(true)
         } else {
           setError('Account created, but automatic sign-in failed. Please sign in manually.')
         }
@@ -309,6 +311,16 @@ export default function AuthPage() {
     signupData.password.length >= 8 &&
     signupData.confirmPassword.length >= 8 &&
     signupData.password === signupData.confirmPassword
+
+  const handleLocationAllow = (lat: number, lng: number) => {
+    setShowLocationPopup(false)
+    router.replace(`/maps?lat=${lat}&lng=${lng}`)
+  }
+
+  const handleLocationDecline = () => {
+    setShowLocationPopup(false)
+    router.replace('/maps')
+  }
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(168,197,122,0.3),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(200,160,81,0.16),transparent_26%),linear-gradient(135deg,#f8f7f0_0%,#eef3e4_50%,#f7efe0_100%)] px-4 py-10 sm:px-6 lg:px-8">
@@ -543,6 +555,12 @@ export default function AuthPage() {
       </div>
 
       <Toaster position="top-right" richColors />
+
+      <LocationPopup
+        open={showLocationPopup}
+        onAllow={handleLocationAllow}
+        onDecline={handleLocationDecline}
+      />
     </section>
   )
 }
