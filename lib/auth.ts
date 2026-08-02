@@ -37,3 +37,22 @@ export function hasGuestModeCookie() {
   return document.cookie.split(';').some((entry) => entry.trim().startsWith('vanashree-guest='))
 }
 
+export type AppIntent = 'sapling' | 'donation'
+
+export const INTENT_COOKIE = 'vanashree-intent'
+
+export function setAppIntentCookie(intent: AppIntent) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${INTENT_COOKIE}=${intent}; path=/; max-age=604800; SameSite=Lax`
+}
+
+export function getAppIntentCookie(): AppIntent | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${INTENT_COOKIE}=`))
+  const value = match?.split('=')[1]
+  return value === 'sapling' || value === 'donation' ? value : null
+}
+

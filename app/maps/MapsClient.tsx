@@ -84,6 +84,7 @@ export default function MapsPage() {
   const [isSavingMarker, setIsSavingMarker] = useState(false)
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
   const userLocationMarkerRef = useRef<CircleMarker | null>(null)
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null)
   const tileLayerRef = useRef<TileLayer | null>(null)
   const [checkedAuth, setCheckedAuth] = useState(false)
   const [guestMode, setGuestMode] = useState(() => hasGuestModeCookie())
@@ -192,21 +193,21 @@ export default function MapsPage() {
     }
   }, [markers, searchParams])
 
-  // Handle lat/lng from URL (set by LocationPopup on auth page)
+  // Handle lat/lng from URL (set by the LocationGate prompt).
+  // The map may not exist yet (Leaflet still loading), so remember the
+  // location in a ref — the map init effect centres on it once ready.
   useEffect(() => {
-    const latParam = searchParams.get('lat')
-    const lngParam = searchParams.get('lng')
-    if (!latParam || !lngParam || !leafletLoaded || !mapRef.current) return
+    const lat = Number.parseFloat(searchParams.get('lat') ?? '')
+    const lng = Number.parseFloat(searchParams.get('lng') ?? '')
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return
 
-    const lat = Number.parseFloat(latParam)
-    const lng = Number.parseFloat(lngParam)
-    if (Number.isNaN(lat) || Number.isNaN(lng)) return
+    userLocationRef.current = { lat, lng }
 
     const map = mapRef.current
-    map.setView([lat, lng], 15)
-
     const L = leafletRef.current
-    if (L) {
+    if (map && L) {
+      map.setView([lat, lng], 15)
       if (userLocationMarkerRef.current) {
         userLocationMarkerRef.current.remove()
       }
@@ -227,7 +228,7 @@ export default function MapsPage() {
     params.delete('lng')
     const newUrl = params.toString() ? `/maps?${params}` : '/maps'
     router.replace(newUrl, { scroll: false })
-  }, [searchParams, leafletLoaded, router])
+  }, [searchParams, router])
 
   // Load Leaflet on the client only
   useEffect(() => {
@@ -315,37 +316,27 @@ export default function MapsPage() {
 
     mapRef.current = map
 
-    
-    const hasPreciseLocation = searchParams.get('lat') && searchParams.get('lng')
-    if (!hasPreciseLocation) {
-      const detectAndCenter = async () => {
-        try {
-          const res = await fetch('/api/geolocate')
-          if (!res.ok) throw new Error('Geolocation failed')
-          const data = await res.json()
-          const lat = data.latitude == null ? NaN : Number(data.latitude)
-          const lon = data.longitude == null ? NaN : Number(data.longitude)
-          const region = data.region || data.city || data.country || 'your area'
-          if (!Number.isNaN(lat) && !Number.isNaN(lon) && map) {
-            map.setView([lat, lon], 13)
-            if (window.showAppMessage) window.showAppMessage(`Centered to ${region}`, 'success', 1800)
-          } else {
-            if (window.showAppMessage) window.showAppMessage('Could not determine approximate location', 'error', 2500)
-          }
-        } catch (err) {
-          console.warn('Geolocation API failed', err)
-          if (window.showAppMessage) window.showAppMessage('Could not determine approximate location', 'error', 2500)
-        }
-      }
-
-      detectAndCenter()
+    // Only centre on a location the user explicitly provided. No IP-based
+    // fallback — if no location was given, keep the default view.
+    const userLocation = userLocationRef.current
+    if (userLocation) {
+      map.setView([userLocation.lat, userLocation.lng], 15)
+      const marker = L.circleMarker([userLocation.lat, userLocation.lng], {
+        radius: 12,
+        color: '#166534',
+        fillColor: '#BBF7D0',
+        fillOpacity: 0.9,
+        weight: 3,
+      }).addTo(map)
+      userLocationMarkerRef.current = marker
+      marker.bindPopup('Your location').openPopup()
     }
 
     return () => {
       map.remove()
       mapRef.current = null
     }
-  }, [leafletLoaded, viewMode, createTileLayer, searchParams])
+  }, [leafletLoaded, viewMode, createTileLayer])
 
   const myMarkerCount = session?.user?.id ? markers.filter((m) => m.userId === session.user.id).length : 0
   const canAddMarkers = status === 'authenticated' && !guestMode

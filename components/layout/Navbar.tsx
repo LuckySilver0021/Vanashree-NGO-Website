@@ -18,6 +18,7 @@ const NAV_HREFS = [
   { href: '/blog', key: 'blog' },
   { href: '/contact', key: 'contact' },
   { href: '/donate', key: 'donate' },
+  { href: '/donation', key: 'marketplace' },
 ] as const
 
 export function Navbar() {
@@ -26,8 +27,8 @@ export function Navbar() {
   const t = useTranslations('nav')
   const { data: session } = useSession()
 
-  // Hide navbar on maps page
-  if (pathname.startsWith('/maps')) return null
+  // Hide navbar on the ecosystem apps (sapling map & donation marketplace)
+  if (pathname.startsWith('/maps') || pathname.startsWith('/donation')) return null
 
   const joinHref = session?.user ? '/maps' : '/auth'
 

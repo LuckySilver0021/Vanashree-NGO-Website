@@ -1,12 +1,13 @@
 'use client'
 
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState, Suspense, useSyncExternalStore } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   IconAlertCircle,
   IconCheck,
+  IconGift,
+  IconLeaf,
   IconLoader2,
   IconLock,
   IconMail,
@@ -16,8 +17,18 @@ import {
 } from '@tabler/icons-react'
 import { toast, Toaster } from 'sonner'
 import { FadeIn } from '@/components/motion/FadeIn'
-import { clearGuestModeCookie, isValidEmail, isValidPhone, normalizeEmail, normalizePhone, sanitizeName, setGuestModeCookie } from '@/lib/auth'
-import { LocationPopup } from '@/components/auth/LocationPopup'
+import {
+  clearGuestModeCookie,
+  getAppIntentCookie,
+  isValidEmail,
+  isValidPhone,
+  normalizeEmail,
+  normalizePhone,
+  sanitizeName,
+  setAppIntentCookie,
+  setGuestModeCookie,
+  type AppIntent,
+} from '@/lib/auth'
 
 type AuthMode = 'login' | 'signup'
 type EmailCheckState = 'idle' | 'checking' | 'available' | 'exists' | 'invalid' | 'temp-mail'
@@ -51,12 +62,20 @@ function looksLikeCompleteEmail(email: string) {
 }
 
 export default function AuthPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthPageInner />
+    </Suspense>
+  )
+}
+
+function AuthPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mode, setMode] = useState<AuthMode>('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
-  const [showLocationPopup, setShowLocationPopup] = useState(false)
   const [loginData, setLoginData] = useState({ email: '', password: '' })
   const [signupData, setSignupData] = useState({
     fullName: '',
@@ -68,6 +87,27 @@ export default function AuthPage() {
   const [emailCheckState, setEmailCheckState] = useState<EmailCheckState>('idle')
   const [emailCheckMessage, setEmailCheckMessage] = useState('')
   const emailToastRef = useRef<string | number | null>(null)
+
+  const urlIntent = searchParams.get('intent')
+  const validUrlIntent: AppIntent | null =
+    urlIntent === 'donation' || urlIntent === 'sapling' ? urlIntent : null
+
+  // Hydration-safe read of the persisted intent cookie (server snapshot is null)
+  const cookieIntent = useSyncExternalStore(
+    () => () => {},
+    () => getAppIntentCookie(),
+    () => null
+  )
+
+  const [userChoice, setUserChoice] = useState<AppIntent | null>(null)
+  const intent: AppIntent = userChoice ?? validUrlIntent ?? cookieIntent ?? 'sapling'
+
+  const handleIntentChange = (next: AppIntent) => {
+    setUserChoice(next)
+    setAppIntentCookie(next)
+    setError('')
+    setSuccessMessage('')
+  }
 
   useEffect(() => {
     const email = signupData.email.trim().toLowerCase()
@@ -165,8 +205,13 @@ export default function AuthPage() {
     try {
       clearGuestModeCookie()
       setGuestModeCookie()
-      setSuccessMessage('Continuing as guest...')
-      setTimeout(() => router.replace('/maps'), 600)
+      setAppIntentCookie(intent)
+      setSuccessMessage(
+        intent === 'donation'
+          ? 'Continuing to the donation marketplace as guest...'
+          : 'Continuing as guest...'
+      )
+      setTimeout(() => router.replace(intent === 'donation' ? '/donation' : '/maps'), 600)
     } catch {
       setError('Unable to continue as guest right now.')
     } finally {
@@ -194,8 +239,17 @@ export default function AuthPage() {
       if (result?.error) {
         setError(result.error)
       } else if (result?.ok) {
-        setSuccessMessage('Login successful!')
-        setTimeout(() => setShowLocationPopup(true), 800)
+        setAppIntentCookie(intent)
+        setSuccessMessage(
+          intent === 'donation' ? 'Login successful! Taking you to the marketplace...' : 'Login successful!'
+        )
+        setTimeout(
+          () =>
+            intent === 'donation'
+              ? router.replace('/donation')
+              : router.replace('/maps'),
+          800
+        )
       }
     } catch {
       setError('An error occurred during login')
@@ -278,6 +332,7 @@ export default function AuthPage() {
       }
 
       clearGuestModeCookie()
+      setAppIntentCookie(intent)
 
       setSuccessMessage('Account created! Signing you in...')
       setSignupData({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' })
@@ -292,7 +347,11 @@ export default function AuthPage() {
         })
 
         if (loginResult?.ok) {
-          setShowLocationPopup(true)
+          if (intent === 'donation') {
+            router.replace('/donation')
+          } else {
+            router.replace('/maps')
+          }
         } else {
           setError('Account created, but automatic sign-in failed. Please sign in manually.')
         }
@@ -311,16 +370,6 @@ export default function AuthPage() {
     signupData.password.length >= 8 &&
     signupData.confirmPassword.length >= 8 &&
     signupData.password === signupData.confirmPassword
-
-  const handleLocationAllow = (lat: number, lng: number) => {
-    setShowLocationPopup(false)
-    router.replace(`/maps?lat=${lat}&lng=${lng}`)
-  }
-
-  const handleLocationDecline = () => {
-    setShowLocationPopup(false)
-    router.replace('/maps')
-  }
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(168,197,122,0.3),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(200,160,81,0.16),transparent_26%),linear-gradient(135deg,#f8f7f0_0%,#eef3e4_50%,#f7efe0_100%)] px-4 py-10 sm:px-6 lg:px-8">
@@ -359,6 +408,63 @@ export default function AuthPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Where do you want to continue? */}
+              <div className="mb-6">
+                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-pebble">
+                  Continue to
+                </p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleIntentChange('sapling')}
+                    aria-pressed={intent === 'sapling'}
+                    className={`group rounded-[20px] border p-3.5 text-left transition-all ${
+                      intent === 'sapling'
+                        ? 'border-leaf/50 bg-leaf/10 shadow-[0_10px_24px_-16px_rgba(28,59,15,0.45)] ring-1 ring-leaf/30'
+                        : 'border-stone-200/70 bg-white/60 hover:border-leaf/30 hover:bg-cream/40'
+                    }`}
+                  >
+                    <span
+                      className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+                        intent === 'sapling' ? 'bg-forest text-white' : 'bg-leaf/15 text-leaf'
+                      }`}
+                    >
+                      <IconLeaf size={17} />
+                    </span>
+                    <span className="block text-sm font-bold text-forest">Sapling Map</span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-pebble">
+                      Mark trees &amp; grow a plantation
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleIntentChange('donation')}
+                    aria-pressed={intent === 'donation'}
+                    className={`group rounded-[20px] border p-3.5 text-left transition-all ${
+                      intent === 'donation'
+                        ? 'border-gold/50 bg-gold/10 shadow-[0_10px_24px_-16px_rgba(200,160,81,0.45)] ring-1 ring-gold/30'
+                        : 'border-stone-200/70 bg-white/60 hover:border-gold/30 hover:bg-sand/40'
+                    }`}
+                  >
+                    <span
+                      className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+                        intent === 'donation' ? 'bg-gold text-forest' : 'bg-gold/15 text-gold'
+                      }`}
+                    >
+                      <IconGift size={17} />
+                    </span>
+                    <span className="block text-sm font-bold text-forest">Vanashree Donation</span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-pebble">
+                      Give &amp; receive pre-loved items
+                    </span>
+                  </button>
+                </div>
+                <p className="mt-2.5 text-[11px] leading-relaxed text-pebble/80">
+                  One account (or guest session) works across the entire Vanashree ecosystem.
+                </p>
               </div>
 
               {error && (
@@ -546,7 +652,7 @@ export default function AuthPage() {
                   className="flex w-full items-center justify-center gap-2 rounded-2xl border border-leaf/30 bg-cream/80 px-4 py-3 text-sm font-semibold text-forest shadow-[0_10px_24px_-16px_rgba(28,59,15,0.35)] transition-all hover:bg-cream hover:shadow-[0_12px_28px_-14px_rgba(28,59,15,0.4)] disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <IconSparkles size={16} />
-                  Continue as guest
+                  {intent === 'donation' ? 'Continue to marketplace as guest' : 'Continue as guest'}
                 </button>
               </div>
             </div>
@@ -555,12 +661,6 @@ export default function AuthPage() {
       </div>
 
       <Toaster position="top-right" richColors />
-
-      <LocationPopup
-        open={showLocationPopup}
-        onAllow={handleLocationAllow}
-        onDecline={handleLocationDecline}
-      />
     </section>
   )
 }

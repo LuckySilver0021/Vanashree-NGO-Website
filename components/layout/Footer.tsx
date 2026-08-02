@@ -17,6 +17,7 @@ const quickLinks = [
   { href: '/blog', label: 'Blog & Updates' },
   { href: '/contact', label: 'Contact' },
   { href: '/donate', label: 'Donate' },
+  { href: '/donation', label: 'Daan Marketplace' },
 ]
 
 const programLinks = [
