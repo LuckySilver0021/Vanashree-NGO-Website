@@ -30,34 +30,53 @@ interface MarkerData {
   latestEntry?: TimelineEntry | null
 }
 
-/* ── Mapbox tile configuration ──────────────────────────────────────
- * Mapbox only — no fallback providers.
- * Get a free token at https://account.mapbox.com/access-tokens/
+/* ── Tile provider configuration ─────────────────────────────────────
+ * Cost optimisation: Mapbox is ONLY used when it is genuinely required:
+ *   - while the user is actively planting ("Plant a Tree" mode), and
+ *   - in SATELLITE view, when the user zooms past the free provider's
+ *     native range (z > FREE_MAX_NATIVE_ZOOM) — Mapbox Satellite takes
+ *     over seamlessly so the zoom never dead-ends.
+ * Street view NEVER touches Mapbox — deep zoom simply over-zooms the free
+ * OpenStreetMap tiles. Free providers used everywhere else:
+ *   - Street (default)  → OpenStreetMap standard tiles
+ *   - Satellite         → Esri World Imagery
  */
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() || ''
 
 if (!MAPBOX_TOKEN) {
-  console.warn('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN not set. Maps will not render.')
+  console.warn('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN not set. Plant zoom will fall back to over-zoomed free tiles.')
+} else {
+  console.log('[Mapbox] Using env key NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:', MAPBOX_TOKEN)
 }
 
-/* Street tiles — Mapbox Outdoors v12 @2x (crisp at high zoom) */
+/* Free providers — no token, no Mapbox API traffic */
+const OSM_STREET_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
+const ESRI_SATELLITE_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const ESRI_ATTRIBUTION = 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+
+/* Mapbox — engaged during planting OR when the user deep-zooms past the
+ * free providers' native sharpness. Outdoors v12 @2x (crisp at high zoom) */
 const STREET_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
 
 const STREET_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
 
-/* Satellite tiles — Mapbox Satellite v9 @2x */
-const SATELLITE_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+/* Mapbox satellite — used for seamless deep-zoom in satellite view */
+const MAPBOX_SATELLITE_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
 
-const SATELLITE_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+const MAPBOX_SATELLITE_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
 
 /* ── Zoom constants ────────────────────────────────
  * Mapbox 512@2x tiles are sharp up to z22.
- * At the Gatewadi latitude (~19°N) z22 ≈ 1.1 m/pixel.
- * For even finer grain we allow z23–z25 via standard over-zoom.
+ * Free providers are natively sharp to z19 — in satellite view, Mapbox
+ * takes over automatically past this point so the zoom never dead-ends.
+ * Street view simply over-zooms the free tiles (no Mapbox, no cost).
  */
 const MAX_MAP_ZOOM = 25
 const MIN_MAP_ZOOM = 3
-const MAX_NATIVE_ZOOM = 22   // highest zoom at which tiles are natively crisp
+const MAX_NATIVE_ZOOM = 22   // highest zoom at which Mapbox tiles are natively crisp
+const FREE_MAX_NATIVE_ZOOM = 19  // free providers max out here — deeper zoom auto-switches to Mapbox
 
 export default function MapsPage() {
   const { data: session, status } = useSession()
@@ -86,11 +105,13 @@ export default function MapsPage() {
   const userLocationMarkerRef = useRef<CircleMarker | null>(null)
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null)
   const tileLayerRef = useRef<TileLayer | null>(null)
+  const tileUrlRef = useRef<string | null>(null)
   const [checkedAuth, setCheckedAuth] = useState(false)
   const [guestMode, setGuestMode] = useState(() => hasGuestModeCookie())
   const [guestNoticeVisible, setGuestNoticeVisible] = useState(false)
   const [guestNoticeFading, setGuestNoticeFading] = useState(false)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
+  const [mapZoom, setMapZoom] = useState(0)
 
   const showConfettiMessage = useCallback((message: string, type: 'success' | 'error' = 'error', action: 'redirect' | 'none' = 'none', redirectUrl: string | null = null) => {
     setConfettiMessage(message)
@@ -257,28 +278,73 @@ export default function MapsPage() {
     })
   }, [])
 
-  // Build tile URL for the current view mode
-  const getTileUrl = useCallback((mode: 'street' | 'satellite') => {
-    return mode === 'satellite' ? SATELLITE_TILE_URL : STREET_TILE_URL
+  // Build tile URL for the current state.
+  // Mapbox engaged only when needed: placing in progress OR deep zoom past
+  // the free providers' native sharpness (FREE_MAX_NATIVE_ZOOM).
+  const getTileUrl = useCallback((mode: 'street' | 'satellite', usesMapbox: boolean) => {
+    if (usesMapbox) {
+      return mode === 'satellite' ? MAPBOX_SATELLITE_TILE_URL : STREET_TILE_URL
+    }
+    return mode === 'satellite' ? ESRI_SATELLITE_TILE_URL : OSM_STREET_TILE_URL
   }, [])
 
-  const getTileAttribution = useCallback((mode: 'street' | 'satellite') => {
-    return mode === 'satellite' ? SATELLITE_ATTRIBUTION : STREET_ATTRIBUTION
+  const getTileAttribution = useCallback((mode: 'street' | 'satellite', usesMapbox: boolean) => {
+    if (usesMapbox) {
+      return mode === 'satellite' ? MAPBOX_SATELLITE_ATTRIBUTION : STREET_ATTRIBUTION
+    }
+    return mode === 'satellite' ? ESRI_ATTRIBUTION : OSM_ATTRIBUTION
   }, [])
 
-  // Create a tile layer with proper high-zoom settings for Mapbox 512@2x tiles
-  const createTileLayer = useCallback((mode: 'street' | 'satellite', L: typeof import('leaflet')) => {
-    return L.tileLayer(getTileUrl(mode), {
-      attribution: getTileAttribution(mode),
-      maxNativeZoom: MAX_NATIVE_ZOOM,
-      maxZoom: MAX_MAP_ZOOM,
-      tileSize: 512,
-      zoomOffset: -1,   // Mapbox 512@2x tiles need -1 offset for correct zoom level correspondence
+  const createTileLayer = useCallback((mode: 'street' | 'satellite', usesMapbox: boolean, L: typeof import('leaflet')) => {
+    const tileUrl = getTileUrl(mode, usesMapbox)
+
+    if (usesMapbox) {
+      console.log(`[Mapbox] Using Mapbox ${mode} layer with URL: ${tileUrl}`)
+    } else {
+      console.log(`[Tiles] Free provider layer (${mode === 'satellite' ? 'Esri satellite' : 'OpenStreetMap'}): ${tileUrl}`)
+    }
+
+    const options =
+      usesMapbox
+        ? {
+            attribution: getTileAttribution(mode, usesMapbox),
+            maxNativeZoom: MAX_NATIVE_ZOOM, // Mapbox 512@2x native sharp up to z22
+            maxZoom: MAX_MAP_ZOOM,
+            tileSize: 512,
+            zoomOffset: -1,   // Mapbox 512@2x tiles need -1 offset for correct zoom level correspondence
+          }
+        : {
+            attribution: getTileAttribution(mode, usesMapbox),
+            maxNativeZoom: FREE_MAX_NATIVE_ZOOM, // free providers render natively up to z19
+            maxZoom: MAX_MAP_ZOOM,
+            zoomOffset: 0,
+          }
+
+    const layer = L.tileLayer(tileUrl, {
+      ...options,
       zoomReverse: false,
       updateWhenZooming: true,
       updateWhenIdle: true,
       keepBuffer: 16,
     })
+
+    if (usesMapbox) {
+      // Log every individual Mapbox API request
+      layer.on('tileloadstart', (e: unknown) => {
+        const t = e as { tile?: { src?: string } }
+        console.log('[Mapbox] USING MAPBOX (Paid req) :', t.tile?.src ?? tileUrl)
+      })
+      layer.on('tileload', (e: unknown) => {
+        const t = e as { tile?: { src?: string } }
+        console.log('[Mapbox] Tile request succeeded:', t.tile?.src ?? tileUrl)
+      })
+      layer.on('tileerror', (e: unknown) => {
+        const t = e as { tile?: { src?: string } }
+        console.error('[Mapbox] Tile request failed:', t.tile?.src ?? tileUrl)
+      })
+    }
+
+    return layer
   }, [getTileUrl, getTileAttribution])
 
   // Initialize map.
@@ -316,9 +382,15 @@ export default function MapsPage() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map)
 
-    // Street is the default on first load; the viewMode effect below
-    // swaps the layer URL in place afterwards.
-    const initialLayer = createTileLayer('street', L).addTo(map)
+    // Track live zoom so the provider swap effect can seamlessly switch to
+    // Mapbox when the user zooms past the free providers' native range.
+    setMapZoom(map.getZoom())
+    map.on('zoomend', () => setMapZoom(map.getZoom()))
+
+    // Default layer is free OpenStreetMap — Mapbox is only engaged when the
+    // user starts planting or deep-zooms (the dedicated swap effect below).
+    console.log('[Tiles] Initializing map with free OpenStreetMap layer')
+    const initialLayer = createTileLayer('street', false, L).addTo(map)
     tileLayerRef.current = initialLayer
 
     const layerGroup = L.layerGroup().addTo(map)
@@ -471,13 +543,38 @@ export default function MapsPage() {
     })
   }, [markers, selectedMarker, leafletLoaded])
 
-  // Switch tile layer when view mode changes
+  // Swap tile layer whenever the view mode, placing, OR live zoom state
+  // changes. Layer is fully recreated (free vs Mapbox have different
+  // tileSize/zoom offset tuning) while the map viewport is preserved.
   useEffect(() => {
-    const layer = tileLayerRef.current
-    if (!layer) return
+    const map = mapRef.current
+    const L = leafletRef.current
+    if (!map || !L) return
 
-    layer.setUrl(viewMode === 'satellite' ? SATELLITE_TILE_URL : STREET_TILE_URL)
-  }, [viewMode])
+    // Mapbox engages ONLY when: placing in progress, OR deep zoom in
+    // satellite view (free imagery runs out at z19). Street view always
+    // stays on free OSM tiles, even when over-zoomed.
+    const usesMapbox =
+      (placing || (viewMode === 'satellite' && mapZoom > FREE_MAX_NATIVE_ZOOM)) && MAPBOX_TOKEN !== ''
+    const newUrl = getTileUrl(viewMode, usesMapbox)
+    if (tileUrlRef.current === newUrl) return
+    tileUrlRef.current = newUrl
+
+    if (usesMapbox) {
+      const reason = placing
+        ? 'planting in progress'
+        : `satellite deep zoom (z=${mapZoom} > ${FREE_MAX_NATIVE_ZOOM})`
+      console.log(`[Mapbox] SWITCHING TO MAPBOX API — ${reason}`)
+    } else {
+      console.log(`[Tiles] Free tiles active (${viewMode === 'satellite' ? 'Esri satellite' : 'OpenStreetMap'}) — zoom=${mapZoom}`)
+    }
+
+    const oldLayer = tileLayerRef.current
+    const nextLayer = createTileLayer(viewMode, usesMapbox, L)
+    if (oldLayer) map.removeLayer(oldLayer)
+    nextLayer.addTo(map)
+    tileLayerRef.current = nextLayer
+  }, [viewMode, placing, mapZoom, createTileLayer, getTileUrl])
 
   
   const handleMapClick = useCallback((e: LeafletMouseEvent) => {
