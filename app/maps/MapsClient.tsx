@@ -155,7 +155,8 @@ export default function MapsPage() {
   }, [confettiAction, confettiRedirectUrl, router])
 
 
-  // Fetch existing markers
+  // Fetch existing markers — exactly once per visit. View-mode switches
+  // never touch the marker data, so no refetch is needed.
   useEffect(() => {
     let cancelled = false
     fetch('/api/markers')
@@ -170,7 +171,7 @@ export default function MapsPage() {
         }
       })
     return () => { cancelled = true }
-  }, [viewMode])
+  }, [])
 
   // If the login redirect added a `loggedIn` query param, just remove it from the address bar
   useEffect(() => {
@@ -280,7 +281,14 @@ export default function MapsPage() {
     })
   }, [getTileUrl, getTileAttribution])
 
-  // Initialize map
+  // Initialize map.
+  //
+  // IMPORTANT: `viewMode` must NOT be a dependency here. Re-running this
+  // effect used to destroy and recreate the entire map on every street/
+  // satellite toggle, which reset the viewport (center + zoom) and the
+  // user-location marker. The map is created exactly once; the tile layer
+  // is swapped in place by the dedicated `viewMode` effect below, which
+  // preserves the viewport.
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || mapRef.current) return
     const L = leafletRef.current
@@ -308,7 +316,9 @@ export default function MapsPage() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map)
 
-    const initialLayer = createTileLayer(viewMode, L).addTo(map)
+    // Street is the default on first load; the viewMode effect below
+    // swaps the layer URL in place afterwards.
+    const initialLayer = createTileLayer('street', L).addTo(map)
     tileLayerRef.current = initialLayer
 
     const layerGroup = L.layerGroup().addTo(map)
@@ -336,7 +346,7 @@ export default function MapsPage() {
       map.remove()
       mapRef.current = null
     }
-  }, [leafletLoaded, viewMode, createTileLayer])
+  }, [leafletLoaded, createTileLayer])
 
   const myMarkerCount = session?.user?.id ? markers.filter((m) => m.userId === session.user.id).length : 0
   const canAddMarkers = status === 'authenticated' && !guestMode
@@ -459,7 +469,7 @@ export default function MapsPage() {
       }
       layer.addLayer(marker)
     })
-  }, [markers, selectedMarker, viewMode])
+  }, [markers, selectedMarker, leafletLoaded])
 
   // Switch tile layer when view mode changes
   useEffect(() => {
