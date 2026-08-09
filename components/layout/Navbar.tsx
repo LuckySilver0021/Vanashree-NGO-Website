@@ -18,7 +18,6 @@ const NAV_HREFS = [
   { href: '/blog', key: 'blog' },
   { href: '/contact', key: 'contact' },
   { href: '/donate', key: 'donate' },
-  { href: '/donation', key: 'marketplace' },
 ] as const
 
 export function Navbar() {

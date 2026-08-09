@@ -40,14 +40,24 @@ export const metadata: Metadata = {
     locale: "en_IN",
     url: "https://vanashree.org",
     siteName: "Vanashree Gramvikas Pratishthan",
+    title: "Vanashree Gramvikas Pratishthan | Rooted in Nature",
+    description:
+      "Grassroots NGO from Gatewadi, Maharashtra. Afforestation, education infrastructure, and environmental cleanup drives since 2013.",
     images: [
       {
-        url: "/images/logo/og-image.webp",
+        url: "/images/logo/og-image.png",
         width: 1200,
         height: 630,
         alt: "Vanashree Gramvikas Pratishthan Logo",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vanashree Gramvikas Pratishthan | Rooted in Nature",
+    description:
+      "Grassroots NGO from Gatewadi, Maharashtra. Afforestation, education infrastructure, and environmental cleanup drives since 2013.",
+    images: ["/images/logo/og-image.png"],
   },
   robots: {
     index: true,
