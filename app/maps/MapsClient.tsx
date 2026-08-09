@@ -30,34 +30,35 @@ interface MarkerData {
   latestEntry?: TimelineEntry | null
 }
 
-/* ── Mapbox tile configuration ──────────────────────────────────────
- * Mapbox only — no fallback providers.
- * Get a free token at https://account.mapbox.com/access-tokens/
- */
+
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() || ''
 
 if (!MAPBOX_TOKEN) {
-  console.warn('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN not set. Maps will not render.')
+  console.warn('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN not set. Satellite view will fall back to Esri tiles.')
+} else {
+  console.log('[Mapbox] Using env key NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:', MAPBOX_TOKEN)
 }
 
-/* Street tiles — Mapbox Outdoors v12 @2x (crisp at high zoom) */
-const STREET_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+/* Default (street) view — free OpenStreetMap tiles, used as-is */
+const OSM_STREET_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
-const STREET_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+/* Satellite view — free Esri imagery by default; falls back seamlessly
+ * to Mapbox satellite past Esri's native zoom (see the swap effect). */
+const MAPBOX_SATELLITE_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
 
-/* Satellite tiles — Mapbox Satellite v9 @2x */
-const SATELLITE_TILE_URL = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+const MAPBOX_SATELLITE_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
 
-const SATELLITE_ATTRIBUTION = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+const ESRI_SATELLITE_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const ESRI_ATTRIBUTION = 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
 
 /* ── Zoom constants ────────────────────────────────
- * Mapbox 512@2x tiles are sharp up to z22.
- * At the Gatewadi latitude (~19°N) z22 ≈ 1.1 m/pixel.
- * For even finer grain we allow z23–z25 via standard over-zoom.
+ * Mapbox 512@2x tiles are sharp up to z22; OSM/Esri up to z19.
  */
 const MAX_MAP_ZOOM = 25
 const MIN_MAP_ZOOM = 3
-const MAX_NATIVE_ZOOM = 22   // highest zoom at which tiles are natively crisp
+const MAX_NATIVE_ZOOM = 22   // Mapbox 512@2x tiles are natively crisp up to here
+const FREE_MAX_NATIVE_ZOOM = 19  // OSM/Esri max out here
 
 export default function MapsPage() {
   const { data: session, status } = useSession()
@@ -84,12 +85,15 @@ export default function MapsPage() {
   const [isSavingMarker, setIsSavingMarker] = useState(false)
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
   const userLocationMarkerRef = useRef<CircleMarker | null>(null)
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null)
   const tileLayerRef = useRef<TileLayer | null>(null)
+  const tileUrlRef = useRef<string | null>(null)
   const [checkedAuth, setCheckedAuth] = useState(false)
   const [guestMode, setGuestMode] = useState(() => hasGuestModeCookie())
   const [guestNoticeVisible, setGuestNoticeVisible] = useState(false)
   const [guestNoticeFading, setGuestNoticeFading] = useState(false)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
+  const [mapZoom, setMapZoom] = useState(0)
 
   const showConfettiMessage = useCallback((message: string, type: 'success' | 'error' = 'error', action: 'redirect' | 'none' = 'none', redirectUrl: string | null = null) => {
     setConfettiMessage(message)
@@ -154,7 +158,8 @@ export default function MapsPage() {
   }, [confettiAction, confettiRedirectUrl, router])
 
 
-  // Fetch existing markers
+  // Fetch existing markers — exactly once per visit. View-mode switches
+  // never touch the marker data, so no refetch is needed.
   useEffect(() => {
     let cancelled = false
     fetch('/api/markers')
@@ -169,7 +174,7 @@ export default function MapsPage() {
         }
       })
     return () => { cancelled = true }
-  }, [viewMode])
+  }, [])
 
   // If the login redirect added a `loggedIn` query param, just remove it from the address bar
   useEffect(() => {
@@ -192,21 +197,21 @@ export default function MapsPage() {
     }
   }, [markers, searchParams])
 
-  // Handle lat/lng from URL (set by LocationPopup on auth page)
+  // Handle lat/lng from URL (set by the LocationGate prompt).
+  // The map may not exist yet (Leaflet still loading), so remember the
+  // location in a ref — the map init effect centres on it once ready.
   useEffect(() => {
-    const latParam = searchParams.get('lat')
-    const lngParam = searchParams.get('lng')
-    if (!latParam || !lngParam || !leafletLoaded || !mapRef.current) return
+    const lat = Number.parseFloat(searchParams.get('lat') ?? '')
+    const lng = Number.parseFloat(searchParams.get('lng') ?? '')
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return
 
-    const lat = Number.parseFloat(latParam)
-    const lng = Number.parseFloat(lngParam)
-    if (Number.isNaN(lat) || Number.isNaN(lng)) return
+    userLocationRef.current = { lat, lng }
 
     const map = mapRef.current
-    map.setView([lat, lng], 15)
-
     const L = leafletRef.current
-    if (L) {
+    if (map && L) {
+      map.setView([lat, lng], 15)
       if (userLocationMarkerRef.current) {
         userLocationMarkerRef.current.remove()
       }
@@ -227,7 +232,7 @@ export default function MapsPage() {
     params.delete('lng')
     const newUrl = params.toString() ? `/maps?${params}` : '/maps'
     router.replace(newUrl, { scroll: false })
-  }, [searchParams, leafletLoaded, router])
+  }, [searchParams, router])
 
   // Load Leaflet on the client only
   useEffect(() => {
@@ -255,31 +260,77 @@ export default function MapsPage() {
     })
   }, [])
 
-  // Build tile URL for the current view mode
-  const getTileUrl = useCallback((mode: 'street' | 'satellite') => {
-    return mode === 'satellite' ? SATELLITE_TILE_URL : STREET_TILE_URL
+  // Build tile URL for the current state.
+  // Street view always uses OpenStreetMap. Satellite view starts on free
+  // Esri imagery and switches to Mapbox once zoomed past Esri's native
+  // sharpness (FREE_MAX_NATIVE_ZOOM).
+  const getTileUrl = useCallback((mode: 'street' | 'satellite', usesMapbox: boolean) => {
+    if (mode === 'satellite' && usesMapbox) {
+      return MAPBOX_SATELLITE_TILE_URL
+    }
+    return mode === 'satellite' ? ESRI_SATELLITE_TILE_URL : OSM_STREET_TILE_URL
   }, [])
 
-  const getTileAttribution = useCallback((mode: 'street' | 'satellite') => {
-    return mode === 'satellite' ? SATELLITE_ATTRIBUTION : STREET_ATTRIBUTION
-  }, [])
+  const createTileLayer = useCallback((mode: 'street' | 'satellite', usesMapbox: boolean, L: typeof import('leaflet')) => {
+    const tileUrl = getTileUrl(mode, usesMapbox)
 
-  // Create a tile layer with proper high-zoom settings for Mapbox 512@2x tiles
-  const createTileLayer = useCallback((mode: 'street' | 'satellite', L: typeof import('leaflet')) => {
-    return L.tileLayer(getTileUrl(mode), {
-      attribution: getTileAttribution(mode),
-      maxNativeZoom: MAX_NATIVE_ZOOM,
-      maxZoom: MAX_MAP_ZOOM,
-      tileSize: 512,
-      zoomOffset: -1,   // Mapbox 512@2x tiles need -1 offset for correct zoom level correspondence
+    if (usesMapbox) {
+      console.log(`[Mapbox] Using Mapbox satellite layer: ${tileUrl}`)
+    } else {
+      console.log(`[Tiles] ${mode === 'satellite' ? 'Esri satellite' : 'OpenStreetMap'}: ${tileUrl}`)
+    }
+
+    const options =
+      usesMapbox
+        ? {
+            attribution: MAPBOX_SATELLITE_ATTRIBUTION,
+            maxNativeZoom: MAX_NATIVE_ZOOM, // Mapbox 512@2x native sharp up to z22
+            maxZoom: MAX_MAP_ZOOM,
+            tileSize: 512,
+            zoomOffset: -1,   // Mapbox 512@2x tiles need -1 offset for correct zoom level correspondence
+          }
+        : {
+            attribution: mode === 'satellite' ? ESRI_ATTRIBUTION : OSM_ATTRIBUTION,
+            maxNativeZoom: FREE_MAX_NATIVE_ZOOM, // OSM/Esri render natively up to z19
+            maxZoom: MAX_MAP_ZOOM,
+            zoomOffset: 0,
+          }
+
+    const layer = L.tileLayer(tileUrl, {
+      ...options,
       zoomReverse: false,
       updateWhenZooming: true,
       updateWhenIdle: true,
       keepBuffer: 16,
     })
-  }, [getTileUrl, getTileAttribution])
 
-  // Initialize map
+    if (usesMapbox) {
+      // Log every individual Mapbox API request
+      layer.on('tileloadstart', (e: unknown) => {
+        const t = e as { tile?: { src?: string } }
+        console.log('[Mapbox] USING MAPBOX (P) :', t.tile?.src ?? tileUrl)
+      })
+      layer.on('tileload', (e: unknown) => {
+        const t = e as { tile?: { src?: string } }
+        console.log('[Mapbox] Tile request succeeded:', t.tile?.src ?? tileUrl)
+      })
+      layer.on('tileerror', (e: unknown) => {
+        const t = e as { tile?: { src?: string } }
+        console.error('[Mapbox] Tile request failed:', t.tile?.src ?? tileUrl)
+      })
+    }
+
+    return layer
+  }, [getTileUrl])
+
+  // Initialize map.
+  //
+  // IMPORTANT: `viewMode` must NOT be a dependency here. Re-running this
+  // effect used to destroy and recreate the entire map on every street/
+  // satellite toggle, which reset the viewport (center + zoom) and the
+  // user-location marker. The map is created exactly once; the tile layer
+  // is swapped in place by the dedicated `viewMode` effect below, which
+  // preserves the viewport.
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || mapRef.current) return
     const L = leafletRef.current
@@ -307,7 +358,14 @@ export default function MapsPage() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map)
 
-    const initialLayer = createTileLayer(viewMode, L).addTo(map)
+    // Track live zoom so the swap effect can seamlessly switch satellite
+    // imagery to Mapbox once zoomed past Esri's native sharpness.
+    setMapZoom(map.getZoom())
+    map.on('zoomend', () => setMapZoom(map.getZoom()))
+
+    // Default layer is free OpenStreetMap.
+    console.log('[Tiles] Initializing map with OpenStreetMap layer')
+    const initialLayer = createTileLayer('street', false, L).addTo(map)
     tileLayerRef.current = initialLayer
 
     const layerGroup = L.layerGroup().addTo(map)
@@ -315,41 +373,31 @@ export default function MapsPage() {
 
     mapRef.current = map
 
-    
-    const hasPreciseLocation = searchParams.get('lat') && searchParams.get('lng')
-    if (!hasPreciseLocation) {
-      const detectAndCenter = async () => {
-        try {
-          const res = await fetch('/api/geolocate')
-          if (!res.ok) throw new Error('Geolocation failed')
-          const data = await res.json()
-          const lat = data.latitude == null ? NaN : Number(data.latitude)
-          const lon = data.longitude == null ? NaN : Number(data.longitude)
-          const region = data.region || data.city || data.country || 'your area'
-          if (!Number.isNaN(lat) && !Number.isNaN(lon) && map) {
-            map.setView([lat, lon], 13)
-            if (window.showAppMessage) window.showAppMessage(`Centered to ${region}`, 'success', 1800)
-          } else {
-            if (window.showAppMessage) window.showAppMessage('Could not determine approximate location', 'error', 2500)
-          }
-        } catch (err) {
-          console.warn('Geolocation API failed', err)
-          if (window.showAppMessage) window.showAppMessage('Could not determine approximate location', 'error', 2500)
-        }
-      }
-
-      detectAndCenter()
+    // Only centre on a location the user explicitly provided. No IP-based
+    // fallback — if no location was given, keep the default view.
+    const userLocation = userLocationRef.current
+    if (userLocation) {
+      map.setView([userLocation.lat, userLocation.lng], 15)
+      const marker = L.circleMarker([userLocation.lat, userLocation.lng], {
+        radius: 12,
+        color: '#166534',
+        fillColor: '#BBF7D0',
+        fillOpacity: 0.9,
+        weight: 3,
+      }).addTo(map)
+      userLocationMarkerRef.current = marker
+      marker.bindPopup('Your location').openPopup()
     }
 
     return () => {
       map.remove()
       mapRef.current = null
     }
-  }, [leafletLoaded, viewMode, createTileLayer, searchParams])
+  }, [leafletLoaded, createTileLayer])
 
   const myMarkerCount = session?.user?.id ? markers.filter((m) => m.userId === session.user.id).length : 0
   const canAddMarkers = status === 'authenticated' && !guestMode
-  const headerTitle = guestMode ? 'Vanashree Facility Map' : 'Vanashree Plantation Map'
+  const headerTitle = guestMode ? 'Vanashree Plantation Map' : 'Vanashree Plantation Map'
   const headerSubtitle = guestMode ? 'Viewing existing saplings in guest mode' : 'Click to mark where you planted'
 
   
@@ -468,15 +516,55 @@ export default function MapsPage() {
       }
       layer.addLayer(marker)
     })
-  }, [markers, selectedMarker, viewMode])
+  }, [markers, selectedMarker, leafletLoaded])
 
-  // Switch tile layer when view mode changes
+  // Swap tile layer whenever the view mode changes. Layer is fully
+  // recreated (Mapbox satellite vs OSM have different tileSize/zoom offset
+  // tuning) while the map viewport is preserved.
   useEffect(() => {
-    const layer = tileLayerRef.current
-    if (!layer) return
+    const map = mapRef.current
+    const L = leafletRef.current
+    if (!map || !L) return
 
-    layer.setUrl(viewMode === 'satellite' ? SATELLITE_TILE_URL : STREET_TILE_URL)
-  }, [viewMode])
+    // Satellite view uses free Esri imagery; one zoom level before Esri's
+    // native sharpness runs out (z >= FREE_MAX_NATIVE_ZOOM) it crossfades
+    // to Mapbox so the swap is never noticeable. Street view always stays
+    // on OpenStreetMap.
+    const usesMapbox =
+      (viewMode === 'satellite' && mapZoom >= FREE_MAX_NATIVE_ZOOM) && MAPBOX_TOKEN !== ''
+    const newUrl = getTileUrl(viewMode, usesMapbox)
+    if (tileUrlRef.current === newUrl) return
+    tileUrlRef.current = newUrl
+
+    if (usesMapbox) {
+      console.log(`[Mapbox] Mapbox satellite active (z=${mapZoom} >= ${FREE_MAX_NATIVE_ZOOM})`)
+    } else {
+      console.log(`[Tiles] ${viewMode === 'satellite' ? 'Esri satellite' : 'OpenStreetMap'} active — zoom=${mapZoom}`)
+    }
+
+    const oldLayer = tileLayerRef.current
+    const nextLayer = createTileLayer(viewMode, usesMapbox, L)
+    nextLayer.setOpacity(0)
+    nextLayer.addTo(map)
+    tileLayerRef.current = nextLayer
+
+    if (!oldLayer) {
+      nextLayer.setOpacity(1)
+      return
+    }
+
+    // Crossfade the new layer over the old one, then drop the old layer.
+    let opacity = 0
+    const FADE_RATE = 0.06
+    const fade = window.setInterval(() => {
+      opacity = Math.min(opacity + FADE_RATE, 1)
+      nextLayer.setOpacity(opacity)
+      if (opacity >= 1) {
+        window.clearInterval(fade)
+        map.removeLayer(oldLayer)
+      }
+    }, 30)
+  }, [viewMode, mapZoom, createTileLayer, getTileUrl])
 
   
   const handleMapClick = useCallback((e: LeafletMouseEvent) => {

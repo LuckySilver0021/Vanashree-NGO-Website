@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     qualities: [75, 85],
     remotePatterns: [
-      { hostname: "cdn.sanity.io" }, // for Phase 5 — Sanity CMS images
+      { hostname: "cdn.sanity.io" }, // for Phase 5 �?" Sanity CMS images
+      { hostname: "ik.imagekit.io" }, // donation marketplace uploads
     ],
   },
 };
