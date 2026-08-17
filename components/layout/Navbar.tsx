@@ -29,7 +29,7 @@ export function Navbar() {
   // Hide navbar on the ecosystem apps (sapling map & donation marketplace)
   if (pathname.startsWith('/maps') || pathname.startsWith('/donation')) return null
 
-  const joinHref = session?.user ? '/maps' : '/auth'
+  const isAuthenticated = !!session?.user
 
   return (
     <nav
@@ -76,12 +76,21 @@ export function Navbar() {
             })}
             <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2">
               {/* <LanguageSwitcher /> */}
-              <Link
-                href={joinHref}
-                className="bg-leaf hover:bg-fern text-white text-sm font-bold px-5 py-2 rounded-full transition-all duration-300 shadow-sm shadow-leaf/20 hover:scale-[1.02]"
-              >
-                {t('joinNow')}
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  href="/join"
+                  className="bg-leaf hover:bg-fern text-white text-sm font-bold px-5 py-2 rounded-full transition-all duration-300 shadow-sm shadow-leaf/20 hover:scale-[1.02]"
+                >
+                  {t('joinNow')}
+                </Link>
+              ) : (
+                <Link
+                  href="/auth"
+                  className="bg-leaf hover:bg-fern text-white text-sm font-bold px-5 py-2 rounded-full transition-all duration-300 shadow-sm shadow-leaf/20 hover:scale-[1.02]"
+                >
+                  {t('joinNow')}
+                </Link>
+              )}
               <Link
                 href="/contact"
                 className="bg-gold/90 hover:bg-gold text-forest text-sm font-bold px-5 py-2 rounded-full transition-all duration-300 shadow-sm shadow-gold/20 flex items-center gap-1.5 hover:scale-[1.02]"
@@ -132,13 +141,23 @@ export function Navbar() {
                 )
               })}
               <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
-              <Link
-                  href={joinHref}
+              {isAuthenticated ? (
+                <Link
+                  href="/join"
                   onClick={() => setOpen(false)}
                   className="bg-leaf text-white text-sm font-bold px-4 py-3 rounded-xl text-center hover:bg-fern transition-colors flex items-center justify-center gap-2"
                 >
                   {t('joinNow')}
                 </Link>
+              ) : (
+                <Link
+                  href="/auth"
+                  onClick={() => setOpen(false)}
+                  className="bg-leaf text-white text-sm font-bold px-4 py-3 rounded-xl text-center hover:bg-fern transition-colors flex items-center justify-center gap-2"
+                >
+                  {t('joinNow')}
+                </Link>
+              )}
                 <Link
                   href="/contact"
                   onClick={() => setOpen(false)}

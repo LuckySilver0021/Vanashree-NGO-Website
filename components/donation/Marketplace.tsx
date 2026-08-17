@@ -10,8 +10,8 @@ import {
 } from '@tabler/icons-react'
 import { ListingCard } from '@/components/donation/ListingCard'
 import {
+  getSearchQuery,
   isSearchQueryPristine,
-  seedSearchQuery,
   setSearchQuery,
   useSearchQuery,
 } from '@/lib/donation-search'
@@ -37,16 +37,6 @@ interface MarketplaceProps {
   viewerUserId: string | null
   categories: string[]
   locations: string[]
-}
-
-function buildQueryString(query: { q: string; category: string; location: string; sort: string }) {
-  const params = new URLSearchParams()
-  if (query.q.trim()) params.set('q', query.q.trim())
-  if (query.category) params.set('category', query.category)
-  if (query.location) params.set('location', query.location)
-  if (VALID_SORTS.has(query.sort) && query.sort !== 'newest') params.set('sort', query.sort)
-  const queryString = params.toString()
-  return queryString ? `?${queryString}` : ''
 }
 
 function sortListings(listings: ListingDTO[], sort: string): ListingDTO[] {
@@ -86,7 +76,6 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
   const searchParams = useSearchParams()
   const query = useSearchQuery()
   const [catalog, setCatalog] = useState<ListingDTO[] | null>(null)
-  const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE)
 
   const urlQ = searchParams.get('q') ?? ''
   const urlCategory = searchParams.get('category') ?? ''
@@ -95,6 +84,15 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
   const urlKey = `${urlQ}|${urlCategory}|${urlLocation}|${urlSort}`
   const localKey = `${query.q}|${query.category}|${query.location}|${query.sort}`
 
+  // Display cap paired with the query key it belongs to: the moment the query
+  // changes, the cap resets to PAGE_SIZE on the next render — derived state,
+  // no effect, no cascading re-render.
+  const [limitState, setLimitState] = useState<{ key: string; limit: number }>({
+    key: localKey,
+    limit: PAGE_SIZE,
+  })
+  const visibleLimit = limitState.key === localKey ? limitState.limit : PAGE_SIZE
+
   // Before the store is seeded (server + first client paint), the URL is the
   // query of record so the server-rendered grid, counts and labels match the
   // shared-link query exactly. Once seeded, the store takes over.
@@ -102,30 +100,13 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
     ? { q: urlQ, category: urlCategory, location: urlLocation, sort: urlSort }
     : query
 
-  // Seed the shared store from the URL once (first mount).
+  // The URL is the source of record ONLY for external navigation: it seeds
+  // the store on first mount and re-seeds on back/forward or shared links.
+  // Local filter changes never touch the URL — the store updates and the
+  // content re-renders instantly while the URL stays put.
   useEffect(() => {
-    seedSearchQuery({ q: urlQ, category: urlCategory, location: urlLocation, sort: urlSort })
-  }, [urlKey])
-
-  // External URL changes (back/forward, fresh navigation) re-seed the store.
-  useEffect(() => {
-    if (urlKey === localKey) return
     setSearchQuery({ q: urlQ, category: urlCategory, location: urlLocation, sort: urlSort })
-  }, [urlKey, localKey, urlQ, urlCategory, urlLocation, urlSort])
-
-  // Debounced URL mirror — keeps links shareable without blocking typing.
-  useEffect(() => {
-    if (localKey === urlKey) return
-    const timer = window.setTimeout(() => {
-      router.replace(`/donation${buildQueryString(query)}`, { scroll: false })
-    }, 250)
-    return () => window.clearTimeout(timer)
-  }, [localKey, urlKey, query, router])
-
-  // Reset the display cap whenever the query changes.
-  useEffect(() => {
-    setVisibleLimit(PAGE_SIZE)
-  }, [localKey])
+  }, [urlKey, urlQ, urlCategory, urlLocation, urlSort])
 
   // Prefetch the full catalog once, then all filtering happens client-side.
   useEffect(() => {
@@ -165,6 +146,21 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
   const hasMoreToShow = visibleLimit < visible.length
   const effectiveKey = `${effective.q}|${effective.category}|${effective.location}|${effective.sort}`
 
+  // Handlers read the store fresh (not the rendered snapshot) so rapid clicks
+  // and multi-tab edits can never act on a stale query.
+  const toggleCategory = (value: string) => {
+    const current = getSearchQuery()
+    setSearchQuery({ ...current, category: current.category === value ? '' : value })
+  }
+
+  const setLocation = (value: string) => {
+    setSearchQuery({ ...getSearchQuery(), location: value })
+  }
+
+  const setSort = (value: string) => {
+    setSearchQuery({ ...getSearchQuery(), sort: value })
+  }
+
   // Until the full catalog arrives, the server-rendered page is the count of
   // record (it was filtered server-side by the URL query); once the catalog is
   // here — or the user is typing something new — show the live client count.
@@ -181,7 +177,7 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
         <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
-            onClick={() => setSearchQuery({ ...query, category: '' })}
+            onClick={() => setSearchQuery({ ...getSearchQuery(), category: '' })}
             className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
               !query.category
                 ? 'bg-forest text-white shadow-md shadow-forest/20'
@@ -194,9 +190,7 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
             <button
               key={category}
               type="button"
-              onClick={() =>
-                setSearchQuery({ ...query, category: query.category === category ? '' : category })
-              }
+              onClick={() => toggleCategory(category)}
               className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
                 query.category === category
                   ? 'bg-forest text-white shadow-md shadow-forest/20'
@@ -219,7 +213,7 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
             <div className="relative">
               <select
                 value={query.location}
-                onChange={(e) => setSearchQuery({ ...query, location: e.target.value })}
+                onChange={(e) => setLocation(e.target.value)}
                 aria-label="Filter by location"
                 className="cursor-pointer appearance-none rounded-full border border-moss/25 bg-white/80 py-2 pl-4 pr-9 text-xs font-semibold text-forest transition-colors hover:border-leaf/40 focus:border-leaf focus:outline-none"
               >
@@ -239,7 +233,7 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
             <div className="relative">
               <select
                 value={VALID_SORTS.has(query.sort) ? query.sort : 'newest'}
-                onChange={(e) => setSearchQuery({ ...query, sort: e.target.value })}
+                onChange={(e) => setSort(e.target.value)}
                 aria-label="Sort listings"
                 className="cursor-pointer appearance-none rounded-full border border-moss/25 bg-white/80 py-2 pl-4 pr-9 text-xs font-semibold text-forest transition-colors hover:border-leaf/40 focus:border-leaf focus:outline-none"
               >
@@ -291,7 +285,9 @@ export function Marketplace({ initial, viewerUserId, categories, locations }: Ma
             <div className="mt-12 text-center">
               <button
                 type="button"
-                onClick={() => setVisibleLimit((n) => n + PAGE_SIZE)}
+                onClick={() =>
+                  setLimitState({ key: localKey, limit: visibleLimit + PAGE_SIZE })
+                }
                 className="inline-flex items-center gap-2 rounded-full border-2 border-forest/15 bg-white px-8 py-3 text-sm font-bold text-forest shadow-sm transition-all hover:border-forest/30 hover:shadow-md"
               >
                 <IconPackage size={16} />
