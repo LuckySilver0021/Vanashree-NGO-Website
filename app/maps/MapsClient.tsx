@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { ConfettiOverlay } from '@/components/motion/ConfettiOverlay'
 import { clearGuestModeCookie, hasGuestModeCookie } from '@/lib/auth'
-import { IconLeaf, IconArrowLeft, IconMapPin, IconSatellite, IconMap, IconPencil, IconPlus } from '@tabler/icons-react'
+import { useFreshLocation } from '@/lib/useFreshLocation'
+import { IconLeaf, IconArrowLeft, IconMapPin, IconSatellite, IconMap, IconPencil, IconPlus, IconHome } from '@tabler/icons-react'
 import type { Map as LeafletMap, LayerGroup, TileLayer, LeafletMouseEvent, DivIcon, CircleMarker } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -103,6 +104,32 @@ export default function MapsPage() {
     setShowConfetti(true)
   }, [])
 
+  // Fresh geolocation fix on every page load — never cached, never
+  // persisted (no URL params, no storage, no cookies, no server).
+  const { position: freshLocation } = useFreshLocation()
+
+  // Centre the map on the user's current fix and place/replace the
+  // user-location dot. Reused by both the map-init effect (location may
+  // arrive before Leaflet finishes loading) and the fresh-location effect.
+  const applyUserLocation = useCallback((map: LeafletMap, L: typeof import('leaflet'), lat: number, lng: number) => {
+    map.setView([lat, lng], 15)
+    const existing = userLocationMarkerRef.current
+    if (existing) {
+      existing.setLatLng([lat, lng])
+      existing.openPopup()
+      return
+    }
+    const marker = L.circleMarker([lat, lng], {
+      radius: 12,
+      color: '#166534',
+      fillColor: '#BBF7D0',
+      fillOpacity: 0.9,
+      weight: 3,
+    }).addTo(map)
+    userLocationMarkerRef.current = marker
+    marker.bindPopup('Your location').openPopup()
+  }, [])
+
   useEffect(() => {
     const cookieGuestMode = hasGuestModeCookie()
     setGuestMode(cookieGuestMode)
@@ -197,42 +224,18 @@ export default function MapsPage() {
     }
   }, [markers, searchParams])
 
-  // Handle lat/lng from URL (set by the LocationGate prompt).
-  // The map may not exist yet (Leaflet still loading), so remember the
-  // location in a ref — the map init effect centres on it once ready.
+  // Apply the fresh fix once it arrives. The map may not exist yet
+  // (Leaflet still loading), so remember the location in a ref — the map
+  // init effect centres on it once ready.
   useEffect(() => {
-    const lat = Number.parseFloat(searchParams.get('lat') ?? '')
-    const lng = Number.parseFloat(searchParams.get('lng') ?? '')
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return
-
-    userLocationRef.current = { lat, lng }
+    if (!freshLocation) return
+    userLocationRef.current = freshLocation
 
     const map = mapRef.current
     const L = leafletRef.current
-    if (map && L) {
-      map.setView([lat, lng], 15)
-      if (userLocationMarkerRef.current) {
-        userLocationMarkerRef.current.remove()
-      }
-      const marker = L.circleMarker([lat, lng], {
-        radius: 12,
-        color: '#166534',
-        fillColor: '#BBF7D0',
-        fillOpacity: 0.9,
-        weight: 3,
-      }).addTo(map)
-      userLocationMarkerRef.current = marker
-      marker.bindPopup('Your location').openPopup()
-    }
-
-    // Remove params from URL so refresh doesn't re-trigger
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete('lat')
-    params.delete('lng')
-    const newUrl = params.toString() ? `/maps?${params}` : '/maps'
-    router.replace(newUrl, { scroll: false })
-  }, [searchParams, router])
+    if (!map || !L) return
+    applyUserLocation(map, L, freshLocation.lat, freshLocation.lng)
+  }, [freshLocation, applyUserLocation])
 
   // Load Leaflet on the client only
   useEffect(() => {
@@ -377,23 +380,14 @@ export default function MapsPage() {
     // fallback — if no location was given, keep the default view.
     const userLocation = userLocationRef.current
     if (userLocation) {
-      map.setView([userLocation.lat, userLocation.lng], 15)
-      const marker = L.circleMarker([userLocation.lat, userLocation.lng], {
-        radius: 12,
-        color: '#166534',
-        fillColor: '#BBF7D0',
-        fillOpacity: 0.9,
-        weight: 3,
-      }).addTo(map)
-      userLocationMarkerRef.current = marker
-      marker.bindPopup('Your location').openPopup()
+      applyUserLocation(map, L, userLocation.lat, userLocation.lng)
     }
 
     return () => {
       map.remove()
       mapRef.current = null
     }
-  }, [leafletLoaded, createTileLayer])
+  }, [leafletLoaded, createTileLayer, applyUserLocation])
 
   const myMarkerCount = session?.user?.id ? markers.filter((m) => m.userId === session.user.id).length : 0
   const canAddMarkers = status === 'authenticated' && !guestMode
@@ -768,6 +762,14 @@ export default function MapsPage() {
             >
               <IconLeaf size={14} />
               {canAddMarkers ? (placing ? 'Cancel' : 'Plant a Tree') : 'Guest view'}
+            </button>
+
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 text-white text-xs px-3 py-1.5 rounded-lg transition-colors ml-1"
+            >
+              <IconHome size={14} />
+              <span className="hidden sm:inline">Back to home</span>
             </button>
 
             <button
