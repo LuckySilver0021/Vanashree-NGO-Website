@@ -37,7 +37,7 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() || ''
 if (!MAPBOX_TOKEN) {
   console.warn('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN not set. Satellite view will fall back to Esri tiles.')
 } else {
-  console.log('[Mapbox] Using env key NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:', MAPBOX_TOKEN)
+  console.log('[Mapbox] Using env key NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:')
 }
 
 /* Default (street) view — free OpenStreetMap tiles, used as-is */

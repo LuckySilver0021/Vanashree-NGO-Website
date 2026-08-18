@@ -29,6 +29,7 @@ import {
   setGuestModeCookie,
   type AppIntent,
 } from '@/lib/auth'
+import { requestLocationNow } from '@/lib/useFreshLocation'
 
 type AuthMode = 'login' | 'signup'
 type EmailCheckState = 'idle' | 'checking' | 'available' | 'exists' | 'invalid' | 'temp-mail'
@@ -206,6 +207,10 @@ function AuthPageInner() {
       clearGuestModeCookie()
       setGuestModeCookie()
       setAppIntentCookie(intent)
+      
+      if (intent === 'sapling') {
+        void requestLocationNow()
+      }
       setSuccessMessage(
         intent === 'donation'
           ? 'Continuing to the donation marketplace as guest...'
@@ -240,6 +245,9 @@ function AuthPageInner() {
         setError(result.error)
       } else if (result?.ok) {
         setAppIntentCookie(intent)
+        if (intent === 'sapling') {
+          void requestLocationNow()
+        }
         setSuccessMessage(
           intent === 'donation' ? 'Login successful! Taking you to the marketplace...' : 'Login successful!'
         )
@@ -308,6 +316,10 @@ function AuthPageInner() {
       if (emailCheckState === 'exists') {
         setError('This email is already registered')
         return
+      }
+
+      if (intent === 'sapling') {
+        void requestLocationNow()
       }
 
       const payload = {

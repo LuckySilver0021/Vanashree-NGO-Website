@@ -27,19 +27,42 @@ const isInRange = (value: number, min: number, max: number) =>
 
 const roundCoord = (value: number) => Number(value.toFixed(COORD_PRECISION))
 
+
+let cachedLocation: FreshLocation | null = null
+let denied = false
+let inflight: Promise<FreshLocation | null> | null = null
+
+export function requestLocationNow(): Promise<FreshLocation | null> {
+  if (cachedLocation) return Promise.resolve(cachedLocation)
+  if (inflight) return inflight
+  if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+    return Promise.resolve(null)
+  }
+
+  inflight = new Promise<FreshLocation | null>((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (result) => {
+        const { latitude, longitude } = result.coords
+        if (!isInRange(latitude, MIN_LAT, MAX_LAT) || !isInRange(longitude, MIN_LNG, MAX_LNG)) {
+          resolve(null)
+          return
+        }
+        cachedLocation = { lat: roundCoord(latitude), lng: roundCoord(longitude) }
+        resolve(cachedLocation)
+      },
+      () => {
+        denied = true
+        resolve(null)
+      },
+      GEOLOCATION_OPTIONS,
+    )
+  })
+
+  return inflight
+}
+
 /**
- * Requests the user's location exactly once per mount (i.e. once per page
- * load / reload) and never caches or persists it.
- *
- * - `maximumAge: 0` forces the browser to acquire a fresh fix instead of
- *   answering from its internal position cache.
- * - The request is intentionally re-issued on every page load, so a reload
- *   always re-asks and re-centres on the current position.
- * - A previously granted permission answers silently with a fresh fix; a
- *   previously blocked permission is rejected by the browser itself and
- *   cannot be overridden from the page (change it in browser settings).
- * - StrictMode-safe: the cleanup cancels a stale in-flight request so a
- *   dev double-mount always ends with exactly one live request.
+ * - StrictMode-safe: the cleanup ignores stale callbacks after unmount.
  *
  * Returns `{ position, status }`. `position` is `null` until granted.
  */
@@ -55,26 +78,17 @@ export function useFreshLocation(): {
   )
 
   useEffect(() => {
-    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return
-
     let cancelled = false
 
-    navigator.geolocation.getCurrentPosition(
-      (result) => {
-        if (cancelled) return
-        const { latitude, longitude } = result.coords
-        if (!isInRange(latitude, MIN_LAT, MAX_LAT) || !isInRange(longitude, MIN_LNG, MAX_LNG)) {
-          setStatus('unavailable')
-          return
-        }
-        setPosition({ lat: roundCoord(latitude), lng: roundCoord(longitude) })
+    requestLocationNow().then((location) => {
+      if (cancelled) return
+      if (location) {
+        setPosition(location)
         setStatus('granted')
-      },
-      () => {
-        if (!cancelled) setStatus('denied')
-      },
-      GEOLOCATION_OPTIONS,
-    )
+      } else {
+        setStatus(denied ? 'denied' : 'unavailable')
+      }
+    })
 
     return () => {
       cancelled = true
