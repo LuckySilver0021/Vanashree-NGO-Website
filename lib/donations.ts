@@ -39,11 +39,6 @@ export const STATUS_LABELS: Record<DonationStatus, string> = {
   donated: 'Donated',
 }
 
-export function formatPrice(price: number) {
-  if (price <= 0) return 'Free'
-  return `₹${price.toLocaleString('en-IN')}`
-}
-
 export function timeAgo(dateValue: string | Date) {
   const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
@@ -95,10 +90,11 @@ export interface ListingDTO {
   id: string
   title: string
   description: string
-  price: number
   category: string
   condition: string
   location: string
+  lat: number | null
+  lng: number | null
   imageUrl: string | null
   status: DonationStatus
   createdAt: string

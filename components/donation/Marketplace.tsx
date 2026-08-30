@@ -20,8 +20,6 @@ import type { ListingDTO, QueryListingsResult } from '@/lib/donations'
 const SORTS = [
   { value: 'newest', label: 'Newest first' },
   { value: 'oldest', label: 'Oldest first' },
-  { value: 'price_asc', label: 'Price: low to high' },
-  { value: 'price_desc', label: 'Price: high to low' },
   { value: 'popular', label: 'Most favourited' },
 ] as const
 
@@ -44,10 +42,6 @@ function sortListings(listings: ListingDTO[], sort: string): ListingDTO[] {
   switch (sort) {
     case 'oldest':
       return list.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    case 'price_asc':
-      return list.sort((a, b) => a.price - b.price || b.createdAt.localeCompare(a.createdAt))
-    case 'price_desc':
-      return list.sort((a, b) => b.price - a.price || b.createdAt.localeCompare(a.createdAt))
     case 'popular':
       return list.sort(
         (a, b) => b.favouriteCount - a.favouriteCount || b.createdAt.localeCompare(a.createdAt),

@@ -19,7 +19,6 @@ const seedUsers = [
 interface SeedListing {
   title: string
   description: string
-  price: number
   category: string
   condition: string
   location: string
@@ -34,7 +33,6 @@ const seedListings: SeedListing[] = [
     title: 'Wooden study table with drawers',
     description:
       'Solid teak wood study table with 2 side drawers. Sturdy, no wobble, great for a student room. Dimensions approx 4ft x 2ft. Minor scratches on one edge, otherwise in great shape.',
-    price: 450,
     category: 'Furniture',
     condition: 'Gently Used',
     location: 'Parner',
@@ -47,7 +45,6 @@ const seedListings: SeedListing[] = [
     title: 'Set of NCERT textbooks — Class 8',
     description:
       'Complete set of Class 8 NCERT books (all subjects) in very good condition. No torn pages or markings. Perfect for a student preparing for the next academic year.',
-    price: 0,
     category: 'Books & Study Material',
     condition: 'Like New',
     location: 'Gatewadi',
@@ -60,7 +57,6 @@ const seedListings: SeedListing[] = [
     title: 'Steel utensils set for kitchen',
     description:
       'Complete steel kitchen utensils set — 6 plates, 6 bowls, 4 glasses, 2 kadhais and serving spoons. Bought for a newlywed couple. Only lightly used, can be given as a wedding gift too.',
-    price: 350,
     category: 'Kitchen & Utensils',
     condition: 'New',
     location: 'Ahilyanagar',
@@ -73,7 +69,6 @@ const seedListings: SeedListing[] = [
     title: "Children's bicycle — age 6 to 9",
     description:
       "Red kids bicycle with training wheels (removable), bell and side basket. Tyres recently replaced. My daughter outgrew it in 2 years. Clean and fully functional.",
-    price: 800,
     category: 'Toys',
     condition: 'Used',
     location: 'Pune',
@@ -86,7 +81,6 @@ const seedListings: SeedListing[] = [
     title: 'Cotton sarees — 5 pieces',
     description:
       'Bundle of 5 pure cotton handloom sarees in bright colours. One has a small tear near the pallu that can be stitched. Ideal for village donation drive.',
-    price: 0,
     category: 'Clothing',
     condition: 'Like New',
     location: 'Shirdi',
@@ -98,8 +92,7 @@ const seedListings: SeedListing[] = [
   {
     title: 'LG 32-inch LED TV',
     description:
-      'LG 32-inch LED TV, works perfectly. Remote included. Upgraded to a bigger screen, so letting this go at a nominal price. Model: Samsung T4300.',
-    price: 3500,
+      'LG 32-inch LED TV, works perfectly. Remote included. Upgraded to a bigger screen, so letting this go to someone who needs it. Model: Samsung T4300.',
     category: 'Electronics',
     condition: 'Gently Used',
     location: 'Nashik',
@@ -112,7 +105,6 @@ const seedListings: SeedListing[] = [
     title: 'Wooden bookshelf — 3 shelves',
     description:
       'Solid wood bookshelf with 3 shelves and back panel. Holds roughly 80 books. Slight paint chipping on top, can be repainted easily.',
-    price: 600,
     category: 'Furniture',
     condition: 'Used',
     location: 'Ahilyanagar',
@@ -125,7 +117,6 @@ const seedListings: SeedListing[] = [
     title: 'Watering cans and garden tools set',
     description:
       'Two metal watering cans (5L and 10L), a garden spade, hand trowel and pruning shears. Used for our home garden. Perfect for a community plantation group.',
-    price: 250,
     category: 'Farm & Garden',
     condition: 'Used',
     location: 'Parner',
@@ -138,7 +129,6 @@ const seedListings: SeedListing[] = [
     title: 'Folding wheelchair',
     description:
       'Lightweight folding wheelchair with padded armrests and footrests. Senior-friendly, brakes work well. Used for 6 months, in excellent condition. Giving free to anyone in genuine need.',
-    price: 0,
     category: 'Medical Equipment',
     condition: 'Gently Used',
     location: 'Mumbai',
@@ -151,7 +141,6 @@ const seedListings: SeedListing[] = [
     title: 'Cricket kit with bat and pads',
     description:
       'Full cricket kit — MRF bat, pads, gloves, helmet and 4 tennis balls. Great for a village youth team. Bat has a couple of edges, still solid.',
-    price: 700,
     category: 'Sports',
     condition: 'Used',
     location: 'Aurangabad',
@@ -164,7 +153,6 @@ const seedListings: SeedListing[] = [
     title: 'Electric sewing machine',
     description:
       'Usha electric sewing machine with side table. Works smoothly, recently serviced. Great for tailoring courses or home use.',
-    price: 1800,
     category: 'Other',
     condition: 'Gently Used',
     location: 'Ahmednagar',
@@ -177,7 +165,6 @@ const seedListings: SeedListing[] = [
     title: 'Kids storybooks bundle — 20 books',
     description:
       '20 children storybooks — Panchatantra, Akbar-Birbal, rhymes and picture books. All in readable condition. Perfect for a school library.',
-    price: 150,
     category: 'Books & Study Material',
     condition: 'Used',
     location: 'Gatewadi',
@@ -190,7 +177,6 @@ const seedListings: SeedListing[] = [
     title: 'Pressure cooker 5 litre',
     description:
       'Prestige 5 litre pressure cooker with 2 extra gaskets and safety valve. Body has minor scratches but cooks perfectly.',
-    price: 400,
     category: 'Kitchen & Utensils',
     condition: 'Gently Used',
     location: 'Pune',
@@ -203,7 +189,6 @@ const seedListings: SeedListing[] = [
     title: 'Laptop bag with sleeve',
     description:
       '15.6-inch laptop backpack with padded sleeve, USB port and rain cover. Bought 3 months ago, barely used.',
-    price: 200,
     category: 'Other',
     condition: 'Like New',
     location: 'Nashik',
@@ -216,7 +201,6 @@ const seedListings: SeedListing[] = [
     title: 'Reclining office chair',
     description:
       'Ergonomic office chair with recline, lumbar support and armrests. Fabric slightly worn but frame and mechanism are solid.',
-    price: 500,
     category: 'Furniture',
     condition: 'Used',
     location: 'Mumbai',
@@ -229,7 +213,6 @@ const seedListings: SeedListing[] = [
     title: 'School bags — 6 pieces',
     description:
       '6 school backpacks (age 6-12), colourful and sturdy. Some lightly used, all zippers working. Great for a back-to-school donation drive.',
-    price: 0,
     category: 'Clothing',
     condition: 'New',
     location: 'Parner',
@@ -268,7 +251,6 @@ async function main() {
       data: {
         title: listing.title,
         description: listing.description,
-        price: listing.price,
         category: listing.category,
         condition: listing.condition,
         location: listing.location,

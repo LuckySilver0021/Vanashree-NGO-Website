@@ -10,7 +10,6 @@ import {
   queryListings,
   serializeListing,
   unauthorized,
-  uploadListingImage,
 } from '@/lib/donations.server'
 
 export const dynamic = 'force-dynamic'
@@ -85,10 +84,11 @@ export async function POST(request: Request) {
     const parsed = listingCreateSchema.safeParse({
       title: formData.get('title'),
       description: formData.get('description'),
-      price: formData.get('price'),
       category: formData.get('category'),
       condition: formData.get('condition'),
       location: formData.get('location'),
+      lat: formData.get('lat'),
+      lng: formData.get('lng'),
     })
 
     if (!parsed.success) {
@@ -104,16 +104,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Account no longer exists. Please sign in again.' }, { status: 401 })
     }
 
-    const { title, description, price, category, condition, location } = parsed.data
+    const { title, description, category, condition, location } = parsed.data
 
-    const listing = await prisma.donationListing.create({
+    let lat: number | null = null
+    let lng: number | null = null
+    if (parsed.data.lat != null && parsed.data.lng != null) {
+      lat = parsed.data.lat
+      lng = parsed.data.lng
+    }
+
+    const result = await prisma.donationListing.create({
       data: {
         title,
         description,
-        price,
         category,
         condition,
         location,
+        lat,
+        lng,
         sellerId: seller.id,
       },
       include: {
@@ -121,32 +129,6 @@ export async function POST(request: Request) {
         _count: { select: { favourites: true } },
       },
     })
-
-    let imageUrl: string | null = null
-    const file = formData.get('image')
-    if (file instanceof File) {
-      try {
-        imageUrl = await uploadListingImage(file, listing.id)
-      } catch (err) {
-        console.error('Failed to upload listing image:', err)
-      }
-    }
-
-    let result = listing
-    if (imageUrl) {
-      try {
-        result = await prisma.donationListing.update({
-          where: { id: listing.id },
-          data: { imageUrl },
-          include: {
-            seller: { select: { id: true, fullName: true } },
-            _count: { select: { favourites: true } },
-          },
-        })
-      } catch (err) {
-        console.error('Failed to attach image to listing:', err)
-      }
-    }
 
     return NextResponse.json({ listing: serializeListing(result) }, { status: 201 })
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -18,11 +18,11 @@ import {
 } from '@tabler/icons-react'
 import {
   STATUS_LABELS,
-  formatPrice,
   timeAgo,
   type ListingDTO,
 } from '@/lib/donations'
 import type { DonationStatus } from '@/lib/donations'
+import { UserLocationMap } from '@/components/donation/UserLocationMap'
 
 interface ListingDetailProps {
   listing: ListingDTO
@@ -41,6 +41,39 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
   const [favouriteCount, setFavouriteCount] = useState(listing.favouriteCount)
   const [busy, setBusy] = useState<'favourite' | 'status' | 'delete' | null>(null)
   const [status, setStatus] = useState<DonationStatus>(listing.status)
+  const [imageUrl, setImageUrl] = useState<string | null>(listing.imageUrl)
+
+  useEffect(() => {
+    if (imageUrl) return
+    if (viewerUserId !== listing.seller.id) return
+    let cancelled = false
+    let attempts = 0
+
+    const timer = window.setInterval(async () => {
+      attempts += 1
+      if (cancelled || attempts > 20) {
+        window.clearInterval(timer)
+        return
+      }
+      try {
+        const res = await fetch(`/api/donations/${listing.id}`)
+        if (!res.ok) return
+        const data = await res.json()
+        const next = data.listing?.imageUrl as string | null | undefined
+        if (typeof next === 'string' && next) {
+          window.clearInterval(timer)
+          if (!cancelled) setImageUrl(next)
+        }
+      } catch {
+        // Keep polling until the upload finishes or attempts run out.
+      }
+    }, 2000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [imageUrl, listing.id, viewerUserId, listing.seller.id])
 
   const isOwner = viewerUserId != null && viewerUserId === listing.seller.id
   const canContact = viewerUserId != null && !isOwner && listing.status === 'available'
@@ -107,21 +140,21 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
   )}`
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
+    <main className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">
       <Link
         href="/donation"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-leaf transition-colors hover:text-forest"
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-leaf transition-colors hover:text-forest"
       >
         <IconArrowLeft size={15} />
         Back to marketplace
       </Link>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-8">
         {/* Image */}
-        <div className="relative aspect-4/3 overflow-hidden rounded-[28px] border border-moss/20 bg-cream shadow-lg shadow-forest/8">
-          {listing.imageUrl ? (
+        <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] border border-moss/20 bg-cream shadow-lg shadow-forest/8 md:rounded-[28px] lg:sticky lg:top-6 lg:self-start">
+          {imageUrl ? (
             <Image
-              src={listing.imageUrl}
+              src={imageUrl}
               alt={listing.title}
               fill
               priority
@@ -137,7 +170,7 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
 
         {/* Details */}
         <div className="flex flex-col gap-5">
-          <div>
+          <div className="order-1">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span
                 className={`rounded-full px-3 py-1 text-[11px] font-bold ${
@@ -162,10 +195,6 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
               {listing.title}
             </h1>
 
-            <p className="mt-4 text-lg font-bold text-forest md:text-2xl">
-              <span className={listing.price <= 0 ? 'text-gold' : ''}>{formatPrice(listing.price)}</span>
-            </p>
-
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-pebble">
               <span className="inline-flex items-center gap-1.5">
                 <IconMapPin size={13} className="text-leaf" />
@@ -182,7 +211,7 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-moss/15 bg-white/80 p-5">
+          <div className="rounded-[24px] border border-moss/15 bg-white/80 p-5 order-3 lg:order-2">
             <h2 className="text-sm font-bold uppercase tracking-[0.16em] text-forest">Description</h2>
             <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-stone">
               {listing.description}
@@ -190,7 +219,7 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
           </div>
 
           {/* Seller card */}
-          <div className="flex items-center gap-4 rounded-[24px] border border-gold/20 bg-white/80 p-5">
+          <div className="flex items-center gap-4 rounded-[24px] border border-gold/20 bg-white/80 p-5 order-4 lg:order-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-forest text-base font-bold text-white">
               {listing.seller.fullName.charAt(0).toUpperCase()}
             </div>
@@ -203,8 +232,16 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
             </div>
           </div>
 
+          <div className="order-5 lg:order-4">
+            <UserLocationMap
+              itemLocation={listing.location}
+              lat={listing.lat}
+              lng={listing.lng}
+            />
+          </div>
+
           {/* Actions */}
-          <div className="flex flex-col gap-3">
+          <div className="order-2 flex flex-col gap-3 lg:order-5">
             {isOwner ? (
               <>
                 <div className="grid grid-cols-3 gap-2 rounded-[24px] border border-moss/15 bg-white/80 p-2">
@@ -266,7 +303,7 @@ export function ListingDetail({ listing, viewerUserId }: ListingDetailProps) {
                   </div>
                 )}
 
-                {listing.status !== 'donated' && (
+                {viewerUserId && listing.status !== 'donated' && (
                   <button
                     type="button"
                     onClick={toggleFavourite}

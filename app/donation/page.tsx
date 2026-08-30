@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-const SORTS = ['newest', 'oldest', 'price_asc', 'price_desc', 'popular'] as const
+const SORTS = ['newest', 'oldest', 'popular'] as const
 type SortKey = (typeof SORTS)[number]
 
 interface PageProps {

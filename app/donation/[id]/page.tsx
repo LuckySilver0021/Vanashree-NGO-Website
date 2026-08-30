@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!listing) return { title: 'Listing Not Found' }
 
   return {
-    title: listing.title,
+    title: 'Donation Listing',
     description: `Donated ${listing.category} in ${listing.location} — find it on Vanashree Daan.`,
   }
 }

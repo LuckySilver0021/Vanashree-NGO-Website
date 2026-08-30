@@ -34,10 +34,11 @@ model DonationListing {
   id          String            @id @default(cuid())
   title       String
   description String
-  price       Int               @default(0)
   category    String
   condition   String
   location    String
+  lat         Float?
+  lng         Float?
   imageUrl    String?
   status      String            @default("available")
   sellerId    String

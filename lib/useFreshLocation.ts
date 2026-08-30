@@ -28,12 +28,10 @@ const isInRange = (value: number, min: number, max: number) =>
 const roundCoord = (value: number) => Number(value.toFixed(COORD_PRECISION))
 
 
-let cachedLocation: FreshLocation | null = null
 let denied = false
 let inflight: Promise<FreshLocation | null> | null = null
 
 export function requestLocationNow(): Promise<FreshLocation | null> {
-  if (cachedLocation) return Promise.resolve(cachedLocation)
   if (inflight) return inflight
   if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
     return Promise.resolve(null)
@@ -47,8 +45,7 @@ export function requestLocationNow(): Promise<FreshLocation | null> {
           resolve(null)
           return
         }
-        cachedLocation = { lat: roundCoord(latitude), lng: roundCoord(longitude) }
-        resolve(cachedLocation)
+        resolve({ lat: roundCoord(latitude), lng: roundCoord(longitude) })
       },
       () => {
         denied = true
@@ -56,6 +53,8 @@ export function requestLocationNow(): Promise<FreshLocation | null> {
       },
       GEOLOCATION_OPTIONS,
     )
+  }).finally(() => {
+    inflight = null
   })
 
   return inflight

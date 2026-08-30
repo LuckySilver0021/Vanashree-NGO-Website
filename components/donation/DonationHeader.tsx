@@ -4,17 +4,14 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import {
   IconArrowLeft,
   IconHeart,
-  IconLogout,
   IconSearch,
   IconPackage,
   IconUser,
-  IconLeaf,
 } from '@tabler/icons-react'
-import { clearGuestModeCookie } from '@/lib/auth'
 import { getSearchQuery, seedSearchQuery, setSearchQuery, useSearchQuery } from '@/lib/donation-search'
 
 function SearchBox() {
@@ -33,7 +30,7 @@ function SearchBox() {
 }
 
 export function DonationHeader() {
-  const { data: session, status } = useSession()
+  const { status, data: session } = useSession()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -46,11 +43,6 @@ export function DonationHeader() {
   useEffect(() => {
     seedSearchQuery({ q, category, location, sort })
   }, [q, category, location, sort])
-
-  const handleLogout = () => {
-    clearGuestModeCookie()
-    signOut({ callbackUrl: '/' })
-  }
 
   // Guests are unauthenticated visitors — their guest cookie is honoured app-wide
   // by the server (read-only). The header simply mirrors that: no session → guest.
@@ -118,24 +110,25 @@ export function DonationHeader() {
               <span className="hidden lg:inline">My Donations</span>
             </Link>
 
-            <Link
-              href="/donation/new"
-              className="flex items-center gap-1.5 rounded-full bg-gold px-3.5 py-2 text-xs font-bold text-forest shadow-md shadow-gold/20 transition-all hover:scale-[1.02] hover:bg-amber md:px-4 md:py-2.5"
-            >
-              <IconPackage size={14} />
-              Post Donation
-            </Link>
+            {!isGuestView && (
+              <Link
+                href="/donation/profile"
+                className="flex h-9 items-center gap-1.5 rounded-full border border-white/20 px-3.5 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
+                aria-label="View profile"
+              >
+                <IconUser size={14} />
+                <span className="hidden max-w-24 truncate md:inline">{displayName}</span>
+              </Link>
+            )}
 
-            <button
-              type="button"
-              onClick={handleLogout}
+            <Link
+              href="/"
               className="flex h-9 items-center gap-1.5 rounded-full border border-white/20 px-3.5 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
-              aria-label="Log out"
+              aria-label="Back to home"
             >
-              {isGuestView ? <IconLeaf size={14} /> : <IconUser size={14} />}
-              <span className="hidden max-w-24 truncate md:inline">{displayName}</span>
-              <IconLogout size={13} className="hidden md:block" />
-            </button>
+              <IconArrowLeft size={14} />
+              <span className="hidden md:inline">Back to home</span>
+            </Link>
           </div>
         </div>
 

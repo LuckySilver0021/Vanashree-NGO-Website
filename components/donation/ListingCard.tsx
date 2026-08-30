@@ -11,7 +11,7 @@ import {
   IconClock,
   IconPackage,
 } from '@tabler/icons-react'
-import { STATUS_LABELS, formatPrice, timeAgo, type ListingDTO } from '@/lib/donations'
+import { STATUS_LABELS, timeAgo, type ListingDTO } from '@/lib/donations'
 
 interface ListingCardProps {
   listing: ListingDTO
@@ -91,7 +91,7 @@ function ListingCardInner({ listing, viewerUserId, onRemoved }: ListingCardProps
           </span>
         )}
 
-        {!isOwner && isAvailable && (
+        {!isOwner && isAvailable && viewerUserId && (
           <button
             type="button"
             onClick={handleFavourite}
@@ -109,7 +109,6 @@ function ListingCardInner({ listing, viewerUserId, onRemoved }: ListingCardProps
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-lg font-bold text-forest">{formatPrice(listing.price)}</p>
           <span className="rounded-full bg-cream px-2.5 py-0.5 text-[10px] font-semibold text-leaf">
             {listing.condition}
           </span>

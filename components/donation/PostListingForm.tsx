@@ -5,33 +5,32 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   IconCamera,
-  IconCheck,
   IconLoader2,
-  IconLock,
-  IconMapPin,
   IconPackage,
   IconPhoto,
   IconX,
 } from '@tabler/icons-react'
-import { ConfettiOverlay } from '@/components/motion/ConfettiOverlay'
-import { DONATION_CATEGORIES, DONATION_CONDITIONS, DONATION_LOCATIONS, MAX_IMAGE_SIZE } from '@/lib/donations'
+import { DONATION_CATEGORIES, DONATION_CONDITIONS, MAX_IMAGE_SIZE } from '@/lib/donations'
+import { LocationPicker } from '@/components/donation/LocationPicker'
 
 interface FormState {
   title: string
   description: string
-  price: string
   category: string
   condition: string
   location: string
+  lat: number | null
+  lng: number | null
 }
 
 const INITIAL_FORM: FormState = {
   title: '',
   description: '',
-  price: '0',
   category: '',
   condition: 'Gently Used',
   location: '',
+  lat: null,
+  lng: null,
 }
 
 export function PostListingForm() {
@@ -40,15 +39,11 @@ export function PostListingForm() {
   const [image, setImage] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [successId, setSuccessId] = useState<string | null>(null)
-  const [showSuccess, setShowSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
-
-  const isFree = Number(form.price) <= 0
 
   const handleImageChange = (file: File | null) => {
     if (!file) {
@@ -76,18 +71,9 @@ export function PostListingForm() {
 
     const title = form.title.trim()
     const description = form.description.trim()
-    const price = Number(form.price)
 
     if (title.length < 4) {
       toast.error('Title must be at least 4 characters')
-      return
-    }
-    if (description.length < 20) {
-      toast.error('Description must be at least 20 characters')
-      return
-    }
-    if (!Number.isInteger(price) || price < 0) {
-      toast.error('Please enter a valid price in rupees (0 for free)')
       return
     }
     if (!form.category) {
@@ -105,11 +91,13 @@ export function PostListingForm() {
       const body = new FormData()
       body.append('title', title)
       body.append('description', description)
-      body.append('price', String(price))
       body.append('category', form.category)
       body.append('condition', form.condition)
       body.append('location', form.location.trim())
-      if (image) body.append('image', image)
+      if (form.lat != null && form.lng != null) {
+        body.append('lat', String(form.lat))
+        body.append('lng', String(form.lng))
+      }
 
       const res = await fetch('/api/donations', { method: 'POST', body })
       const data = await res.json()
@@ -119,8 +107,17 @@ export function PostListingForm() {
         return
       }
 
-      setSuccessId(data.listing?.id ?? null)
-      setShowSuccess(true)
+      const listingId = data.listing?.id ?? null
+      if (listingId && image) {
+        const imageBody = new FormData()
+        imageBody.append('image', image)
+        void fetch(`/api/donations/${listingId}/image`, { method: 'POST', body: imageBody }).catch(
+          () => undefined
+        )
+      }
+
+      toast.success('Your donation is live!')
+      router.replace(listingId ? `/donation/${listingId}` : '/donation', { scroll: false })
     } catch {
       toast.error('Network error. Please try again.')
     } finally {
@@ -129,23 +126,10 @@ export function PostListingForm() {
   }
 
   return (
-    <>
-      {showSuccess && (
-        <ConfettiOverlay
-          message="Your donation is live!"
-          type="success"
-          duration={2600}
-          onComplete={() => {
-            setShowSuccess(false)
-            router.replace(successId ? `/donation/${successId}` : '/donation', { scroll: false })
-          }}
-        />
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6 rounded-[32px] border border-moss/20 bg-white/85 p-6 shadow-[0_35px_100px_-35px_rgba(28,59,15,0.35)] backdrop-blur-xl sm:p-8"
-      >
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 rounded-[32px] border border-moss/20 bg-white/85 p-6 shadow-[0_35px_100px_-35px_rgba(28,59,15,0.35)] backdrop-blur-xl sm:p-8"
+    >
         {/* Image upload */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-forest">Photo</label>
@@ -174,7 +158,7 @@ export function PostListingForm() {
               >
                 <IconPhoto size={24} className="text-leaf" />
                 <span className="text-xs font-semibold">Add a photo</span>
-                <span className="text-[10px] text-pebble/70">Optional · up to 5MB</span>
+                <span className="text-[10px] text-pebble/70">up to 5MB</span>
               </button>
             )}
             <input
@@ -248,64 +232,25 @@ export function PostListingForm() {
           </div>
         </div>
 
-        {/* Price + location */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="listing-price" className="mb-2 block text-sm font-semibold text-forest">
-              Price (₹)
-            </label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-leaf">
-                ₹
-              </span>
-              <input
-                id="listing-price"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={10000000}
-                value={form.price}
-                onChange={(e) => set('price', e.target.value)}
-                className="w-full rounded-2xl border border-moss/25 bg-cream/40 py-3 pl-8 pr-4 text-sm text-forest placeholder:text-pebble focus:border-leaf focus:outline-none"
-              />
-            </div>
-            <p className="mt-1.5 text-[11px] text-pebble/80">
-              {isFree ? (
-                <span className="inline-flex items-center gap-1 font-semibold text-leaf">
-                  <IconCheck size={12} /> Free — it will show as a gift to the community
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 font-semibold text-gold">
-                  <IconLock size={11} /> A small price can still change a life
-                </span>
-              )}
+        {/* Location */}
+        <div>
+          <label htmlFor="listing-location" className="mb-2 block text-sm font-semibold text-forest">
+            Location
+          </label>
+          <LocationPicker
+            value={form.location}
+            onChange={(location, lat, lng) => {
+              set('location', location)
+              set('lat', lat)
+              set('lng', lng)
+            }}
+            placeholder="Search for a city..."
+          />
+          {form.location && form.lat == null && (
+            <p className="mt-1.5 text-[11px] text-amber-700">
+              Tip: pick a city from the suggestions so the map shows the exact area.
             </p>
-          </div>
-
-          <div>
-            <label htmlFor="listing-location" className="mb-2 block text-sm font-semibold text-forest">
-              Location
-            </label>
-            <div className="relative">
-              <IconMapPin size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-leaf" />
-              <input
-                id="listing-location"
-                type="text"
-                required
-                maxLength={60}
-                list="donation-locations"
-                value={form.location}
-                onChange={(e) => set('location', e.target.value)}
-                placeholder="e.g. Parner, Ahilyanagar"
-                className="w-full rounded-2xl border border-moss/25 bg-cream/40 py-3 pl-9 pr-4 text-sm text-forest placeholder:text-pebble focus:border-leaf focus:outline-none"
-              />
-              <datalist id="donation-locations">
-                {DONATION_LOCATIONS.map((loc) => (
-                  <option key={loc} value={loc} />
-                ))}
-              </datalist>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Description */}
@@ -323,7 +268,7 @@ export function PostListingForm() {
             maxLength={2000}
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
-            placeholder="Describe the item — size, age, condition, and why you're giving it away. Being specific helps it find the right home."
+            placeholder="Describe the item — age, condition, and why you're giving it away."
             className="w-full resize-none rounded-2xl border border-moss/25 bg-cream/40 py-3 px-4 text-sm text-forest placeholder:text-pebble focus:border-leaf focus:outline-none"
           />
           <p className="mt-1 text-right text-[10px] text-pebble/70">{form.description.length}/2000</p>
@@ -350,6 +295,5 @@ export function PostListingForm() {
           Listings are reviewed and visible to the whole Vanashree community.
         </p>
       </form>
-    </>
   )
 }

@@ -7,7 +7,7 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import ImageKit, { toFile } from '@imagekit/nodejs'
 import { DONATION_CONDITIONS, DONATION_STATUSES, MAX_IMAGE_SIZE, type DonationStatus, type ListingDTO, type QueryListingsResult } from '@/lib/donations'
 
-export const listingSortSchema = z.enum(['newest', 'oldest', 'price_asc', 'price_desc', 'popular'])
+export const listingSortSchema = z.enum(['newest', 'oldest', 'popular'])
 
 const boolQuery = z
   .enum(['true', 'false', '1', '0'])
@@ -30,11 +30,12 @@ export const listingQuerySchema = z.object({
 
 export const listingCreateSchema = z.object({
   title: z.string().trim().min(4, 'Title must be at least 4 characters').max(100, 'Title must be under 100 characters'),
-  description: z.string().trim().min(20, 'Description must be at least 20 characters').max(2000, 'Description must be under 2000 characters'),
-  price: z.coerce.number().int('Price must be a whole number').min(0, 'Price cannot be negative').max(10_000_000, 'Price is too large'),
+  description: z.string().trim().max(2000, 'Description must be under 2000 characters'),
   category: z.string().trim().min(1).max(60),
   condition: z.enum(DONATION_CONDITIONS),
   location: z.string().trim().min(2, 'Location is required').max(60),
+  lat: z.coerce.number().min(-90).max(90).nullish(),
+  lng: z.coerce.number().min(-180).max(180).nullish(),
 })
 
 export const listingPatchSchema = z.object({
@@ -67,10 +68,11 @@ export function serializeListing(
     id: string
     title: string
     description: string
-    price: number
     category: string
     condition: string
     location: string
+    lat?: number | null
+    lng?: number | null
     imageUrl: string | null
     status: string
     createdAt: Date
@@ -84,10 +86,11 @@ export function serializeListing(
     id: listing.id,
     title: listing.title,
     description: listing.description,
-    price: listing.price,
     category: listing.category,
     condition: listing.condition,
     location: listing.location,
+    lat: listing.lat ?? null,
+    lng: listing.lng ?? null,
     imageUrl: listing.imageUrl,
     status: listing.status as DonationStatus,
     createdAt: listing.createdAt.toISOString(),
@@ -143,10 +146,6 @@ export async function queryListings(input: QueryListingsInput): Promise<QueryLis
     switch (input.sort) {
       case 'oldest':
         return [{ createdAt: 'asc' }]
-      case 'price_asc':
-        return [{ price: 'asc' }, { createdAt: 'desc' }]
-      case 'price_desc':
-        return [{ price: 'desc' }, { createdAt: 'desc' }]
       case 'popular':
         return [{ favourites: { _count: 'desc' } }, { createdAt: 'desc' }]
       default:
