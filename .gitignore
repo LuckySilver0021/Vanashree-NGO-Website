@@ -6,6 +6,7 @@
 # ─── Next.js build output ────────────────────────────────
 /.next/
 .vscode/
+.sixth/
 /out/
 /build
 

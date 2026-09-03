@@ -46,6 +46,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   if (!post) notFound()
 
   const isJategaonWildlifePost = slug === 'water-support-for-wildlife-jategaon'
+  const isGhanegaonPlantationPost = slug === 'cleanup-drive-parner-taluka'
+  const isEyeCheckupPost = slug === 'free-eye-checkup-spectacles-campaign'
 
   return (
     <>
@@ -89,8 +91,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <PostPhotoToggle
                 title={post.title}
                 images={post.galleryImages}
+                stacked={isGhanegaonPlantationPost}
+                firstImageObjectPosition={isEyeCheckupPost ? 'object-top' : undefined}
                 frameClassName={
-                  isJategaonWildlifePost ? 'aspect-[8/10] md:aspect-2/1' : undefined
+                  isJategaonWildlifePost
+                    ? 'aspect-[8/10] md:aspect-2/1'
+                    : isGhanegaonPlantationPost
+                      ? 'aspect-[8/10]'
+                      : undefined
                 }
               />
             ) : (

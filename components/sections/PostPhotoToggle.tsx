@@ -13,6 +13,8 @@ interface PostPhotoToggleProps {
   posterSrc?: string
   className?: string
   frameClassName?: string
+  stacked?: boolean
+  firstImageObjectPosition?: string
 }
 
 function isVideoSource(src: string) {
@@ -30,6 +32,8 @@ export function PostPhotoToggle({
   posterSrc,
   className,
   frameClassName,
+  stacked = false,
+  firstImageObjectPosition,
 }: PostPhotoToggleProps) {
   const galleryBySrc = useMemo(
     () => new Map(galleryImages.map((image) => [image.src, image])),
@@ -58,6 +62,32 @@ export function PostPhotoToggle({
 
   if (resolvedImages.length === 0) {
     return null
+  }
+
+  if (stacked) {
+    return (
+      <div className="grid gap-4 sm:gap-6">
+        {resolvedImages.map((img, i) => (
+          <div
+            key={img.src}
+            className="relative aspect-4/3 rounded-2xl overflow-hidden shadow-xl shadow-forest/10 border border-moss/10 bg-white"
+          >
+            <Image
+              src={img.src}
+              alt={img.alt}
+              width={img.width}
+              height={img.height}
+            className={cn(
+              'object-cover w-full h-full',
+              activeIndex === 0 ? firstImageObjectPosition : undefined
+            )}
+              sizes="(max-width: 768px) 100vw, 896px"
+              priority={i === 0}
+            />
+          </div>
+        ))}
+      </div>
+    )
   }
 
   const activeImage = resolvedImages[activeIndex]

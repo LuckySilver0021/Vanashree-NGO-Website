@@ -48,6 +48,7 @@ export function DonationHeader() {
   // by the server (read-only). The header simply mirrors that: no session → guest.
   const isGuestView = status !== 'authenticated'
   const displayName = isGuestView ? 'Guest' : session?.user?.fullName ?? 'Member'
+  const backHref = pathname === '/donation' ? '/' : '/donation'
 
   return (
     <header className="sticky top-0 z-40 bg-forest/95 shadow-lg shadow-black/10 backdrop-blur-xl">
@@ -56,7 +57,7 @@ export function DonationHeader() {
           {/* Brand + back */}
           <div className="flex min-w-0 items-center gap-2.5">
             <Link
-              href="/"
+              href={backHref}
               aria-label="Back to Vanashree home"
               className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white transition-colors hover:bg-white/20 sm:flex"
             >
@@ -122,7 +123,7 @@ export function DonationHeader() {
             )}
 
             <Link
-              href="/"
+              href={backHref}
               className="flex h-9 items-center gap-1.5 rounded-full border border-white/20 px-3.5 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
               aria-label="Back to home"
             >

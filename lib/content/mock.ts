@@ -255,6 +255,71 @@ As temperatures continue to rise across rural Maharashtra, access to water becom
     ],
     publishedAt: '2026-05-18',
     category: 'Environment',
+  },
+  {
+    _id: 'post-5',
+    title: 'Ghanegaon Tree plantation drive',
+    slug: 'ghanegaon-tree-plantation-drive',
+    excerpt:
+      'Work has commenced in Ghanegaon for the plantation of approximately 150 saplings. The land is being prepared and plantation pits are being dug with the assistance of a JCB.',
+    body: `Work has commenced in Ghanegaon for the plantation of approximately 150 saplings. The land is being prepared and plantation pits are being dug with the assistance of a JCB.
+
+This tree plantation work is being supported by respected Mr. Madhukar Gaikwad, whose valuable contribution is helping us carry out this effort.`,
+    coverImage: '/images/gallery/gallery-29.jpeg',
+    galleryImages: [
+      '/images/gallery/gallery-29.jpeg',
+      '/images/gallery/gallery-30.jpeg',
+      '/images/gallery/gallery-31.jpeg',
+      '/images/gallery/gallery-32.jpeg',
+      '/images/gallery/gallery-33.jpeg',
+    ],
+    publishedAt: '2026-08-25',
+    category: 'Environment',
+  },
+  {
+    _id: 'post-6',
+    title: 'Supa Cleanup Drive',
+    slug: 'supa-cleanup-drive',
+    excerpt: 'A cleanup drive was organised in Supa to keep the area clean and raise awareness about waste management.',
+    body: `A cleanup drive was organised in Supa to keep the surrounding area clean and raise awareness about the importance of waste management and environmental hygiene.
+
+Volunteers came together to collect waste from public spaces, roadsides, and common areas, helping to keep the village clean and healthy for everyone.`,
+    coverImage: '/images/gallery/gallery-34.jpeg',
+    galleryImages: [
+      '/images/gallery/gallery-34.jpeg',
+      '/images/gallery/gallery-35.jpeg',
+      '/images/gallery/gallery-36.jpeg',
+      '/images/gallery/gallery-37.jpeg',
+      '/images/gallery/gallery-38.jpeg',
+      '/images/gallery/gallery-39.jpeg',
+      '/images/gallery/gallery-40.jpeg',
+      '/images/gallery/gallery-41.jpeg',
+      '/images/gallery/gallery-42.jpeg',
+      '/images/gallery/gallery-43.jpeg',
+    ],
+    publishedAt: '2026-01-25',
+    category: 'Environment',
+  },
+  {
+    _id: 'post-7',
+    title: 'Free Eye Checkup and Spectacles Giveaway Campaign',
+    slug: 'free-eye-checkup-spectacles-campaign',
+    excerpt:
+      'Vanashree organised a free eye checkup and spectacles giveaway campaign to help community members improve their vision and quality of life.',
+    body: `Vanashree organised a free eye checkup and spectacles giveaway campaign to bring quality eye care directly to the community.
+
+Eye specialists conducted thorough checkups for residents of all ages, identifying vision problems and providing reading and distance glasses to those in need — completely free of cost.
+
+The campaign helped many people who had been struggling with poor eyesight, especially elders who found everyday tasks increasingly difficult. Seeing their joy as they tried on their new spectacles was truly rewarding.
+
+We are grateful to the doctors, volunteers, and supporters who made this initiative possible. Good vision opens up a world of opportunities, and we are proud to have helped so many people see clearly again.`,
+    coverImage: '/images/gallery/gallery-44.jpeg',
+    galleryImages: [
+      '/images/gallery/gallery-45.jpeg',
+      '/images/gallery/gallery-47.jpeg',
+    ],
+    publishedAt: '2026-08-16',
+    category: 'Community',
   }
 ]
 
